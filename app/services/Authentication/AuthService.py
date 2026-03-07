@@ -15,7 +15,7 @@ class AuthService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def loginUser(self, username, password, rememberMe):
+    async def loginUser(self, username: str, password: str, rememberMe: bool):
         try:
             result = await self.db.execute(
                 select(User)
@@ -53,7 +53,7 @@ class AuthService:
                         expires_at=refreshToken['expire_at']
                     )
                     self.db.add(new_refresh_token)
-                    await self.db.commit()
+                    await self.db.flush()
 
                     tokensData = {
                         "accessToken":accessToken,
@@ -103,7 +103,7 @@ class AuthService:
                 raise PermissionError("Invalid or revoked refresh token")
 
             db_refresh_token.is_revoked = True
-            await self.db.commit()
+            await self.db.flush()
 
             user_result = await self.db.execute(
                 select(User)
@@ -140,12 +140,13 @@ class AuthService:
             )
 
             self.db.add(refresh_token_store)
-            await self.db.commit()
+            await self.db.flush()
 
             new_tokens = {
                 "accessToken": new_access_token,
                 "refreshToken": new_refresh_token['token']
             }
+            
             return {"ok": True, "message": "Tokens Refreshed", "code": 201, "data": new_tokens}
         except Exception as e:
             logger.error(e)
@@ -173,7 +174,7 @@ class AuthService:
                     and_(
                         RefreshToken.token == token,
                         RefreshToken.user_id == int(user_id),
-                        RefreshToken.expires_at > datetime.datetime.now(),
+                        # RefreshToken.expires_at > datetime.datetime.now(),
                         RefreshToken.is_revoked == False
                     )
                 )
@@ -184,7 +185,7 @@ class AuthService:
                 raise PermissionError("Invalid or revoked refresh token")
 
             db_refresh_token.is_revoked = True
-            await self.db.commit()
+            await self.db.flush()
 
             return {"ok": True, "message": "Token Revoked Successfully", "code": 201, "data": None}
         except Exception as e:

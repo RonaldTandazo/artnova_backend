@@ -7,6 +7,7 @@ from .Artworks.ArtworkImage import ArtworkImage
 from .Artworks.ArtworkVideo import ArtworkVideo
 from .Artworks.ArtworkThumbnail import ArtworkThumbnail
 from .Artworks.ArtworkSchedule import ArtworkSchedule
+from .Artworks.ArtworkUserFavorite import ArtworkUserFavorite
 from .Auth.RefreshToken import RefreshToken
 from .General.Category import Category
 from .General.Country import Country
@@ -19,4 +20,6 @@ from .Users.UserCategory import UserCategory
 from .Users.UserSocialNetwork import UserSocialNetwork
 from .Users.UserSoftware import UserSoftware
 from .Users.UserTopic import UserTopic
+from .Follows.Follow import Follow
+from .Blocks.Block import Block
 from .base import Base

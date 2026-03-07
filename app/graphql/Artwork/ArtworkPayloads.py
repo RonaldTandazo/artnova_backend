@@ -3,7 +3,9 @@ from app.graphql.Topic.TopicPayloads import TopicPayload
 from app.graphql.Software.SoftwarePayloads import SoftwarePayload
 from app.graphql.Publishing.PublishingPayloads import PublishingPayload
 from app.graphql.Standard.StandardPayloads import StandardPayload
+from app.graphql.ArtworkStatistics.ArtworkStatisticsPayloads import ArtworkStatsPayload
 from typing import Optional
+from datetime import date, time
 import strawberry
 
 @strawberry.type
@@ -20,16 +22,35 @@ class ArtworkPayload:
     createdAt: str
 
 @strawberry.type
+class ArtworkItemPayload:
+    artworkId: int
+    title: str
+    thumbnail: Optional[str | None] = None
+    publishingId: int
+    scheduleDate: Optional[date] = None
+    scheduleTime: Optional[time] = None
+    stats: ArtworkStatsPayload
+
+@strawberry.type
+class ArtworkOwnerPayload:
+    userId: int
+    username: str
+    avatar: str | None
+
+@strawberry.type
 class ArtworkDetailsPayload:
     artworkId: int
     title: str
-    description: str
+    description: Optional[str | None] = None
     matureContent: bool
-    categories: list[int]
+    categories: list[StandardPayload]
     topics: list[StandardPayload]
     softwares: list[StandardPayload]
     publishingId: int
     thumbnail: str | None
+    images: list[str]
+    videos: list[str]
+    owner: ArtworkOwnerPayload
     createdAt: str
 
 @strawberry.type

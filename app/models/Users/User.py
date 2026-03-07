@@ -1,13 +1,11 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
 from passlib.context import CryptContext
-import datetime
-from app.models.base import Base
-from sqlalchemy.dialects.postgresql import JSONB
+from app.models.base import Base, AuditBase
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-class User(Base):
+class User(AuditBase, Base):
     __tablename__ = "users"
 
     user_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
@@ -21,15 +19,24 @@ class User(Base):
     city = Column(String(50), nullable=True)
     country_id = Column(Integer, ForeignKey("countries.country_id"), nullable=True)
     avatar = Column(String(50), nullable=True)
-    status = Column(String(3), default="A", nullable=False)
-    ip = Column(String(20), nullable=False)
-    terminal = Column(JSONB, nullable=False)
-    created_at = Column(DateTime, default=datetime.datetime.now, nullable=False)
-    updated_at = Column(DateTime, onupdate=datetime.datetime.now, nullable=True)
 
     country = relationship(
         "Country",
         primaryjoin="and_(User.country_id == Country.country_id, Country.status == 'A')"
+    )
+
+    artwork_owner = relationship(
+        "ArtworkOwner",
+        back_populates="user",
+        primaryjoin="and_(User.user_id == ArtworkOwner.user_id, ArtworkOwner.status == 'A')",
+        uselist=True
+    )
+
+    artwork_user_favorites = relationship(
+        "ArtworkUserFavorite",
+        back_populates="user",
+        primaryjoin="and_(User.user_id == ArtworkUserFavorite.user_id, ArtworkUserFavorite.status == 'A')",
+        uselist=True
     )
 
     @classmethod

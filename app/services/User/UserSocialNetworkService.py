@@ -1,17 +1,18 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.Users.UserSocialNetwork import UserSocialNetwork
-from app.config.logger import logger
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 import datetime
+from app.config.logger import logger
 from sqlalchemy.future import select
 from sqlalchemy import and_, asc, delete
 from sqlalchemy.orm import joinedload
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any
+from app.models.Users.UserSocialNetwork import UserSocialNetwork
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 class UserSocialNetworkService:
     def __init__(self, db: AsyncSession):
         self.db = db
         
-    async def getUserSocialMedia(self, userId):
+    async def getUserSocialMedia(self, userId: int):
         try:            
             result = await self.db.execute(
                 select(UserSocialNetwork)
@@ -48,7 +49,7 @@ class UserSocialNetworkService:
             error_code, error_message = error_mapping.get(type(e), (500, "Internal server error"))
             return {"ok": False, "error": error_message, "code": error_code}
         
-    async def getUserSocialMediaById(self, userSocialNetworkId):
+    async def getUserSocialMediaById(self, userSocialNetworkId: int):
         try:            
             result = await self.db.execute(
                 select(UserSocialNetwork)
@@ -74,7 +75,7 @@ class UserSocialNetworkService:
             error_code, error_message = error_mapping.get(type(e), (500, "Internal server error"))
             return {"ok": False, "error": error_message, "code": error_code}
         
-    async def store(self, userId, socialNetworkId, link, ip, terminal):
+    async def store(self, userId: int, socialNetworkId: int, link: str, ip: str, terminal: Any):
         try:            
             item = UserSocialNetwork(
                 user_id=userId,
@@ -84,7 +85,7 @@ class UserSocialNetworkService:
                 terminal=terminal
             )
             self.db.add(item)
-            await self.db.commit()
+            await self.db.flush()
 
             return {"ok": True, "message": "Social Network Stored", "code": 201, "data": item}
         except Exception as e:
@@ -101,12 +102,12 @@ class UserSocialNetworkService:
             error_code, error_message = error_mapping.get(type(e), (500, "Internal server error"))
             return {"ok": False, "error": error_message, "code": error_code}
         
-    async def update(self, item:UserSocialNetwork, socialNetworkId, link):
+    async def update(self, item: UserSocialNetwork, socialNetworkId: int, link: str):
         try:            
             item.social_media_id = socialNetworkId
             item.link = link
             item.updated_at=datetime.datetime.now()
-            await self.db.commit()
+            await self.db.flush()
 
             return {"ok": True, "message": "Social Network Updated", "code": 201, "data": item}
         except Exception as e:
@@ -123,10 +124,10 @@ class UserSocialNetworkService:
             error_code, error_message = error_mapping.get(type(e), (500, "Internal server error"))
             return {"ok": False, "error": error_message, "code": error_code}
         
-    async def remove(self, item:UserSocialNetwork):
+    async def remove(self, item: UserSocialNetwork):
         try:
             await self.db.execute(delete(UserSocialNetwork).where(UserSocialNetwork.user_social_network_id == item.user_social_network_id))
-            await self.db.commit()
+            await self.db.flush()
 
             return {"ok": True, "message": "Social Network Unlinked", "code": 201, "data": None}
         except Exception as e:

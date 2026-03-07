@@ -1,9 +1,12 @@
+import os
+import uuid
+import json
+import base64
 import user_agents
+from bson.objectid import ObjectId
 from datetime import datetime, timezone
 from app.config.logger import logger
-import base64
-import uuid
-import os
+import asyncio
 
 class Helpers:
     async def getIp(request) -> str:
@@ -57,16 +60,20 @@ class Helpers:
         filename = f"{uuid.uuid4()}{extension}"
         return filename
     
-    async def decodedAndSaveImg(filename: str, img_base64: str, type: str):
+    async def decodedAndSaveFile(filename: str, file: str, type: str, decode: bool = True):
         try:
-            img_data  = base64.b64decode(img_base64.split(',')[1])
-            upload_folder = "app/public"
+            if decode:
+                file_data  = base64.b64decode(file.split(',')[1])
+            else:
+                file_data = file
 
-            if type == "thumbnail":
-                upload_folder += "/artworks/thumbnails"
+            upload_folder = "app/public"
 
             if type == "avatar":
                 upload_folder += "/users/avatars"
+
+            if type == "thumbnail":
+                upload_folder += "/artworks/thumbnails"
 
             if type == "image":
                 upload_folder += "/artworks/multimedia/images"
@@ -79,22 +86,29 @@ class Helpers:
             file_path = os.path.join(upload_folder, filename)
 
             with open(file_path, "wb") as f:
-                f.write(img_data)
+                f.write(file_data)
 
             return {"ok": True, "message": "File Saved Successfully", "code": 201, "data": None}
         except Exception as e:
             logger.error(e)
             return {"ok": False, "error": "Error Saving File", "code": 500}
         
-    async def deleteImage(filename: str, type: str):
+    async def deleteFile(filename: str, type: str):
         try:
             base_folder = "app/public"
             target_folder = base_folder
+            
+            if type == "avatar":
+                target_folder += "/users/avatars"
 
             if type == "thumbnail":
                 target_folder += "/artworks/thumbnails"
-            elif type == "avatar":
-                target_folder += "/users/avatars"
+            
+            if type == "image":
+                target_folder += "/artworks/multimedia/images"
+
+            if type == "video":
+                target_folder += "/artworks/multimedia/videos"
 
             file_path_to_delete = os.path.join(target_folder, filename)
 
@@ -105,3 +119,23 @@ class Helpers:
         except Exception as e:
             logger.error(e)
             return {"ok": False, "error": "Error Deleting File", "code": 500}
+
+    @staticmethod  
+    def json_serial(obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if isinstance(obj, ObjectId):
+            return str(obj)
+        raise TypeError (f"Object of type {type(obj).__name__} is not JSON serializable")
+
+    @staticmethod
+    def dumps_with_mongo_types(data: dict) -> str:
+        return json.dumps(data, default=Helpers.json_serial)
+    
+    @staticmethod
+    def run_async(coro):
+        try:
+            loop = asyncio.get_event_loop()
+            return loop.run_until_complete(coro)
+        except RuntimeError:
+            return asyncio.run(coro)

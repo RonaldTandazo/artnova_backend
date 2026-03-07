@@ -35,7 +35,7 @@ class UserTopicService:
                 UserTopicPayload(
                     userId = item['user_id'],
                     topicId = item['topic_id'],
-                    topic = item['topic']
+                    name = item['topic']
                 )
                 for item in records
             ]
@@ -67,7 +67,7 @@ class UserTopicService:
                     )
                 )
             )
-            await self.db.commit()
+            await self.db.flush()
     
             return {"ok": True, "message": "Deleted User Topics", "code": 201, "data": None}
         except Exception as e:
@@ -95,7 +95,7 @@ class UserTopicService:
                     )
                 )
             )
-            await self.db.commit()
+            await self.db.flush()
     
             return {"ok": True, "message": "Deleted All User Topics", "code": 201, "data": None}
         except Exception as e:
@@ -158,7 +158,7 @@ class UserTopicService:
                 )
 
             self.db.add_all(user_topics_to_add)
-            await self.db.commit()
+            await self.db.flush()
     
             return {"ok": True, "message": "Stored User Topics", "code": 201, "data": None}
         except Exception as e:

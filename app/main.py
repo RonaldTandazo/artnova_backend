@@ -1,69 +1,58 @@
-from fastapi import HTTPException, FastAPI, Depends, Header, Request
+import json
+from app.config.logger import logger
+from fastapi import FastAPI, Depends, Request
 from strawberry.fastapi import GraphQLRouter
 from app.graphql.GraphSchema import GraphSchema 
-from app.db.database import get_db
-from app.security.AuthGraph import getCurrentUserFromToken
+from app.db.database import get_db, get_mongo_db
 from strawberry.subscriptions import GRAPHQL_TRANSPORT_WS_PROTOCOL, GRAPHQL_WS_PROTOCOL
 from sqlalchemy.ext.asyncio import AsyncSession
+from motor.motor_asyncio import AsyncIOMotorDatabase
 from fastapi.middleware.cors import CORSMiddleware
-from strawberry.exceptions import GraphQLError
 from fastapi.staticfiles import StaticFiles
-from app.config.logger import logger
-import json
+from app.db.redis import connect_to_redis, close_redis_connection
+from app.config.settings import URL_FRONTEND
 
 app = FastAPI()
 
-app.mount("/thumbnails", StaticFiles(directory="app/public/artworks/thumbnails"), name="thumbnails")
-app.mount("/avatars", StaticFiles(directory="app/public/users/avatars"), name="avatars")
+@app.on_event("startup")
+async def startup_event():
+    await connect_to_redis()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    await close_redis_connection()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://artnova.vercel.app"],
+    allow_origins=[URL_FRONTEND],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
 )
 
+app.mount("/thumbnails", StaticFiles(directory="app/public/artworks/thumbnails"))
+app.mount("/avatars", StaticFiles(directory="app/public/users/avatars"))
+app.mount("/images", StaticFiles(directory="app/public/artworks/multimedia/images"))
+app.mount("/videos", StaticFiles(directory="app/public/artworks/multimedia/videos"))
+
 # GRAPHQL
 async def get_context(
     request: Request,
-    # authorization: str = Header(None),
-    # current_user: None = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    mongo_db: AsyncIOMotorDatabase = Depends(get_mongo_db)
 ):
     body = None
-    # operation_name = None
 
     if request.method == "POST":
-        try:
-            body = await request.json()
-            # operation_name = body.get("operationName")  
-        except json.JSONDecodeError:
-            pass
-
-        return {"db": db, "request": request, "body": body}
-    # logger.info(operation_name)
-    # if operation_name and operation_name in FREE_OPERATIONS:
-    #     return {"current_user": None, "db": db, "request": request, "body": body}
+        if "application/json" in request.headers.get("Content-Type", ""):
+            try:
+                body = await request.json()  
+            except json.JSONDecodeError:
+                pass
     
-    # if authorization:
-    #     token = authorization.split("Bearer ")[-1]
-    #     try:
-    #         current_user = getCurrentUserFromToken(token)
-    #         if current_user['ok']:
-    #             return {"current_user": current_user['data'], "db": db, "request": request, "body": body}
-            
-    #         raise GraphQLError(message="Token has expired", extensions={"code": "UNAUTHENTICATED"})
-    #     except GraphQLError as e:
-    #         raise GraphQLError(message="Token has expired", extensions={"code": "UNAUTHENTICATED"})
-    #     except Exception as e:
-    #         raise GraphQLError(message="Token has expired", extensions={"code": "UNAUTHENTICATED"})
-    # else:
-    #     logger.info("cae aca")
-    #     raise GraphQLError(message="Authentication is Required", extensions={"code": "FORBIDDEN"})
+    return {"db": db, "mongo_db": mongo_db, "request": request, "body": body}
 
-
-graphql_app = GraphQLRouter(schema=GraphSchema, context_getter=get_context, subscription_protocols=[GRAPHQL_TRANSPORT_WS_PROTOCOL, GRAPHQL_WS_PROTOCOL])
+graphql_app = GraphQLRouter(schema=GraphSchema, context_getter=get_context, subscription_protocols=[GRAPHQL_TRANSPORT_WS_PROTOCOL, GRAPHQL_WS_PROTOCOL], multipart_uploads_enabled=True)
 app.include_router(graphql_app, prefix="/graphql", tags=["graphql"])
 
 graphql_ws_router = GraphQLRouter(schema=GraphSchema, subscription_protocols=[GRAPHQL_TRANSPORT_WS_PROTOCOL, GRAPHQL_WS_PROTOCOL])

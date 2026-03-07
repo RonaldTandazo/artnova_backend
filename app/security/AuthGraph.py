@@ -49,7 +49,7 @@ def createRefreshToken(data: dict, expires_delta: timedelta = None):
 def verifyToken(token: str, origin: str | None = None):
     options = {"verify_exp": True}
 
-    if origin is 'Revoke':
+    if origin == 'Revoke':
         options["verify_exp"] = False
 
     try:

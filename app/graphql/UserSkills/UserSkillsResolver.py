@@ -200,13 +200,17 @@ class UserSkillsMutation:
                 delete_all_softwares = await usr_sftw_service.deleteAllUserSoftwares(current_user.userId)
                 if not delete_all_softwares.get("ok", False):
                     raise GraphQLError(message=delete_all_softwares['error'], extensions={"code": "BAD_USER_INPUT"})
+                
+            await db.commit()
 
-            return "Skills Updated Successfully"
+            return "Skills && Interests Updated Successfully"
         except GraphQLError as e:
             logger.error(e.message)
             raise e
 
         except Exception as e:
+            await db.rollback()
+
             error_mapping = {
                 IntegrityError: ("BAD_USER_INPUT", "E-mail already in used"),
                 SQLAlchemyError: ("INTERNAL_SERVER_ERROR", "Error interno del servidor"),

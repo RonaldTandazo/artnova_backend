@@ -1,6 +1,11 @@
 import strawberry
 
 @strawberry.input
+class UserVariablesInput:
+    userId: int | None
+    module: str | None
+
+@strawberry.input
 class RegisterInput:
     firstName: str
     lastName: str

@@ -4,19 +4,19 @@ import strawberry
 class UserSoftwarePayload:
     userId: int
     softwareId: int
-    software: str
+    name: str
 
 @strawberry.type
 class UserCategoryPayload:
     userId: int
     categoryId: int
-    category: str
+    name: str
 
 @strawberry.type
 class UserTopicPayload:
     userId: int
     topicId: int
-    topic: str
+    name: str
 
 @strawberry.type
 class UserSkillsPayload:

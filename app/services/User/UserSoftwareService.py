@@ -35,7 +35,7 @@ class UserSoftwareService:
                 UserSoftwarePayload(
                     userId = item['user_id'],
                     softwareId = item['software_id'],
-                    software = item['software']
+                    name = item['software']
                 )
                 for item in records
             ]
@@ -67,7 +67,7 @@ class UserSoftwareService:
                     )
                 )
             )
-            await self.db.commit()
+            await self.db.flush()
     
             return {"ok": True, "message": "Deleted User Softwares", "code": 201, "data": None}
         except Exception as e:
@@ -95,7 +95,7 @@ class UserSoftwareService:
                     )
                 )
             )
-            await self.db.commit()
+            await self.db.flush()
     
             return {"ok": True, "message": "Deleted All User Softwares", "code": 201, "data": None}
         except Exception as e:
@@ -158,7 +158,7 @@ class UserSoftwareService:
                 )
 
             self.db.add_all(user_softwares_to_add)
-            await self.db.commit()
+            await self.db.flush()
     
             return {"ok": True, "message": "Stored User Softwares", "code": 201, "data": None}
         except Exception as e:

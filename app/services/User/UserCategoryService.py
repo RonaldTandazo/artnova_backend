@@ -35,7 +35,7 @@ class UserCategoryService:
                 UserCategoryPayload(
                     userId = item['user_id'],
                     categoryId = item['category_id'],
-                    category = item['category'],
+                    name = item['category'],
                 )
                 for item in records
             ]
@@ -78,7 +78,7 @@ class UserCategoryService:
                     )
                 )
             )
-            await self.db.commit()
+            await self.db.flush()
     
             return {"ok": True, "message": "Deleted  User Categories", "code": 201, "data": None}
         except Exception as e:
@@ -106,7 +106,7 @@ class UserCategoryService:
                     )
                 )
             )
-            await self.db.commit()
+            await self.db.flush()
     
             return {"ok": True, "message": "Deleted All User Categories", "code": 201, "data": None}
         except Exception as e:
@@ -169,7 +169,7 @@ class UserCategoryService:
                 )
 
             self.db.add_all(user_categories_to_add)
-            await self.db.commit()
+            await self.db.flush()
     
             return {"ok": True, "message": "Stored User Categories", "code": 201, "data": None}
         except Exception as e:

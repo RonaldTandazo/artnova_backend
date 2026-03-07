@@ -4,8 +4,10 @@ from app.config.logger import logger
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from strawberry.exceptions import GraphQLError
 from app.utils.helpers import Helpers
-from app.graphql.Artwork.ArtworkInputs import StoreArtworkInput
-from app.graphql.Artwork.ArtworkPayloads import ArtworkPayload, ArtworkDetailsPayload, ArtworkFormData
+from app.graphql.Artwork.ArtworkInputs import StoreArtworkInput, DeleteUserArtworkInput
+from app.graphql.User.UserInputs import UserVariablesInput
+from app.graphql.Artwork.ArtworkPayloads import ArtworkPayload, ArtworkDetailsPayload, ArtworkFormData, ArtworkItemPayload
+from app.graphql.ArtworkStatistics.ArtworkStatisticsPayloads import ArtworkStatsPayload
 from app.services.Artwork.ArtworkService import ArtworkService
 from app.services.Artwork.ArtworkOwnerService import ArtworkOwnerService
 from app.services.Artwork.ArtworkThumbnailService import ArtworkThumbnailService
@@ -14,6 +16,8 @@ from app.services.Artwork.ArtworkSoftwareService import ArtworkSoftwareService
 from app.services.Artwork.ArtworkTopicService import ArtworkTopicService
 from app.services.Artwork.ArtworkImageService import ArtworkImageService
 from app.services.Artwork.ArtworkVideoService import ArtworkVideoService
+from app.services.Artwork.ArtworkScheduleService import ArtworkScheduleService
+from app.services.ArtworkStatistics.ArtworkStatisticsService import ArtworkStatisticsService
 from app.services.General.CategoryService import CategoryService
 from app.services.General.TopicService import TopicService
 from app.services.General.SoftwareService import SoftwareService
@@ -22,8 +26,9 @@ from app.graphql.Category.CategoryPayloads import CategoryPayload
 from app.graphql.Topic.TopicPayloads import TopicPayload
 from app.graphql.Software.SoftwarePayloads import SoftwarePayload
 from app.graphql.Publishing.PublishingPayloads import PublishingPayload
-
 from typing import AsyncGenerator
+from app.jobs.Artwork.CreateArtworkStats import createArtworkStats
+from app.jobs.Artwork.DeleteArtworksRecords import deleteArtworksRecords
 
 @strawberry.type
 class NewArtworkPayload:
@@ -52,18 +57,20 @@ class ArtworkMutation:
         awk_tpc_service = ArtworkTopicService(db)
         awk_img_service = ArtworkImageService(db)
         awk_vid_service = ArtworkVideoService(db)
+        awk_sch_service = ArtworkScheduleService(db)
         
         ip = await Helpers.getIp(request)
         terminal = await Helpers.getRequestAgents(request)
         filename = None
+
         try:
-            logger.info("artworkData")
-            logger.info(artworkData)
-            logger.info("artworkData.videos")
-            logger.info(artworkData.videos)
+            has_thumbnail = bool(artworkData.thumbnail)
             has_images = bool(artworkData.images)
             has_videos = bool(artworkData.videos)
             has_3d_file = False
+            has_categories = artworkData.categories and len(artworkData.categories) > 0
+            has_topics = artworkData.topics and len(artworkData.topics) > 0
+            has_softwares = artworkData.softwares and len(artworkData.softwares) > 0
 
             store_artwork = await awk_service.store(
                 title=artworkData.title,
@@ -76,52 +83,47 @@ class ArtworkMutation:
                 terminal=terminal,
                 publishing=artworkData.publishing
             )
-
             if not store_artwork.get("ok", False):
                 raise GraphQLError(message=store_artwork['error'], extensions={"code": "BAD_USER_INPUT"})
 
             artwork = store_artwork.get("data")
 
             store_artwork_owner = await awk_owner_service.store(
-                artwork.artwork_id,
-                current_user.userId,
-                ip,
-                terminal
+                artworkId=artwork.artwork_id,
+                userId=current_user.userId,
+                ip=ip,
+                terminal=terminal
             )
-
             if not store_artwork_owner.get("ok", False):
                 raise GraphQLError(message=store_artwork_owner['error'], extensions={"code": "BAD_USER_INPUT"})
 
-            if artworkData.categories and len(artworkData.categories) > 20:
+            if has_categories:
                 store_artwork_categories = await awk_ctg_service.store(
-                    artwork.artwork_id,
-                    artworkData.categories,
-                    ip,
-                    terminal
+                    artworkId=artwork.artwork_id,
+                    categoryIds=artworkData.categories,
+                    ip=ip,
+                    terminal=terminal
                 )
-
                 if not store_artwork_categories.get("ok", False):
                     raise GraphQLError(message=store_artwork_categories['error'], extensions={"code": "BAD_USER_INPUT"})
                 
-            if artworkData.topics and len(artworkData.topics) > 20:
+            if has_topics:
                 store_artwork_topics = await awk_tpc_service.store(
-                    artwork.artwork_id,
-                    artworkData.topics,
-                    ip,
-                    terminal
+                    artworkId=artwork.artwork_id,
+                    topicIds=artworkData.topics,
+                    ip=ip,
+                    terminal=terminal
                 )
-
                 if not store_artwork_topics.get("ok", False):
                     raise GraphQLError(message=store_artwork_topics['error'], extensions={"code": "BAD_USER_INPUT"})
                 
-            if artworkData.softwares and len(artworkData.softwares) > 20:
+            if has_softwares:
                 store_artwork_softwares = await awk_sfw_service.store(
-                    artwork.artwork_id,
-                    artworkData.softwares,
-                    ip,
-                    terminal
+                    artworkId=artwork.artwork_id,
+                    softwareIds=artworkData.softwares,
+                    ip=ip,
+                    terminal=terminal
                 )
-
                 if not store_artwork_softwares.get("ok", False):
                     raise GraphQLError(message=store_artwork_softwares['error'], extensions={"code": "BAD_USER_INPUT"})
                 
@@ -129,16 +131,18 @@ class ArtworkMutation:
                 for index, image in enumerate(artworkData.images):
                     image_name = artworkData.title+ " _ Image " + str(index)
                     filename = await Helpers.generateRandomFilename(".jpeg")
-                    image_store = await Helpers.decodedAndSaveImg(filename, image, "image")
+                    image_content = await image.read()
+
+                    image_store = await Helpers.decodedAndSaveFile(filename, image_content, "image", False)
                     if not image_store.get("ok", False):
                         raise GraphQLError(message=image_store['error'], extensions={"code": "INTERNAL_SERVER_ERROR"})
 
                     store_artwork_image = await awk_img_service.store(
-                        artwork.artwork_id, 
-                        filename, 
-                        image_name,
-                        ip,
-                        terminal
+                        artworkId=artwork.artwork_id, 
+                        filename=filename, 
+                        image_name=image_name,
+                        ip=ip,
+                        terminal=terminal
                     )
 
                     if not store_artwork_image.get("ok", False):
@@ -148,55 +152,125 @@ class ArtworkMutation:
                 for index, video in enumerate(artworkData.videos):
                     video_name = artworkData.title+ " _ Video " + str(index)
                     filename = await Helpers.generateRandomFilename(".mp4")
-                    video_store = await Helpers.decodedAndSaveImg(filename, video, "video")
+                    video_content = await video.read()
+
+                    video_store = await Helpers.decodedAndSaveFile(filename, video_content, "video", False)
                     if not video_store.get("ok", False):
                         raise GraphQLError(message=video_store['error'], extensions={"code": "INTERNAL_SERVER_ERROR"})
 
                     store_artwork_video = await awk_vid_service.store(
-                        artwork.artwork_id, 
-                        filename, 
-                        video_name,
-                        ip,
-                        terminal
+                        artworkId=artwork.artwork_id, 
+                        filename=filename, 
+                        video_name=video_name,
+                        ip=ip,
+                        terminal=terminal
                     )
 
                     if not store_artwork_video.get("ok", False):
                         raise GraphQLError(message=store_artwork_video['error'], extensions={"code": "INTERNAL_SERVER_ERROR"})
                 
-            if artworkData.thumbnail and artworkData.thumbnail != '':
+            if has_thumbnail:
                 thumbnail_name = artworkData.title+" Thumbnail"
                 filename = await Helpers.generateRandomFilename(".jpeg")
-                thumbnail_store = await Helpers.decodedAndSaveImg(filename, artworkData.thumbnail, "thumbnail")
+                thumbnail_content = await artworkData.thumbnail.read()
+
+                thumbnail_store = await Helpers.decodedAndSaveFile(filename, thumbnail_content, "thumbnail", False)
                 if not thumbnail_store.get("ok", False):
                     raise GraphQLError(message=thumbnail_store['error'], extensions={"code": "INTERNAL_SERVER_ERROR"})
 
                 store_artwork_thumbnail = await awk_thmb_service.store(
-                    artwork.artwork_id, 
-                    filename, 
-                    thumbnail_name,
-                    ip,
-                    terminal
+                    artworkId=artwork.artwork_id, 
+                    filename=filename, 
+                    thumbnail_name=thumbnail_name,
+                    ip=ip,
+                    terminal=terminal
                 )
 
                 if not store_artwork_thumbnail.get("ok", False):
                     raise GraphQLError(message=store_artwork_thumbnail['error'], extensions={"code": "INTERNAL_SERVER_ERROR"})
 
-            await artwork_queue.put(NewArtworkPayload(artwork=ArtworkPayload(
+            if artworkData.publishing == 4 and artworkData.publishingTargetStatus != None:
+                store_schedule = await awk_sch_service.store(
+                    artworkId=artwork.artwork_id,
+                    publishingIdTarget=artworkData.publishingTargetStatus,
+                    date=artworkData.scheduleDate,
+                    time=artworkData.scheduleTime,
+                    ip=ip,
+                    terminal=terminal
+                )
+                if not store_schedule.get("ok", False):
+                    raise GraphQLError(message=store_schedule['error'], extensions={"code": "INTERNAL_SERVER_ERROR"})
+
+            await db.commit()
+            await artwork_queue.put(
+                NewArtworkPayload(
+                    artwork=ArtworkPayload(
+                        artworkId=artwork.artwork_id,
+                        title=artwork.title,
+                        thumbnail=filename,
+                        publishingId=artworkData.publishing,
+                        owner=current_user.userId,
+                        createdAt=artwork.created_at
+                    )
+                )
+            )
+
+            createArtworkStats.delay(artwork.artwork_id, current_user.userId, ip, terminal)
+
+            return ArtworkPayload(
                 artworkId=artwork.artwork_id,
                 title=artwork.title,
                 thumbnail=filename,
                 publishingId=artworkData.publishing,
                 owner=current_user.userId,
                 createdAt=artwork.created_at
-            )))
-
-            return ArtworkPayload(artworkId=artwork.artwork_id, title=artwork.title, thumbnail=filename, publishingId=artworkData.publishing, owner=current_user.userId, createdAt=artwork.created_at)
+            )
 
         except GraphQLError as e:
             logger.error(e.message)
             raise e
 
         except Exception as e:
+            await db.rollback()
+
+            error_mapping = {
+                IntegrityError: ("BAD_USER_INPUT", "E-mail already in used"),
+                SQLAlchemyError: ("INTERNAL_SERVER_ERROR", "Error interno del servidor"),
+                ValueError: ("BAD_USER_INPUT", "Datos inválidos"),
+                PermissionError: ("FORBIDDEN", "Permiso denegado"),
+                FileNotFoundError: ("NOT_FOUND", "Archivo no encontrado"),
+                ConnectionError: ("TOO_MANY_REQUESTS", "Demasiadas solicitudes"),
+            }
+
+            extension_code, error_message = error_mapping.get(type(e), ("INTERNAL_SERVER_ERROR", "Error desconocido"))
+            logger.error(error_message)
+            raise GraphQLError(message=error_message, extensions={"code": extension_code})
+    @strawberry.mutation
+    async def deleteUserArtworks(self, info, deleteArtworks: DeleteUserArtworkInput) -> str:
+        db = info.context["db"]
+        current_user = info.context["current_user"]
+        
+        awk_owner_service = ArtworkOwnerService(db)
+
+        try:
+            userId=current_user.userId
+
+            validation = await awk_owner_service.validateArtworksOwner(userId=userId, ArtworkIds=deleteArtworks.artworkIds)
+            if validation.get('ok'):
+                result = validation.get('data')
+                owned_ids = result['owned_ids']
+
+                deleteArtworksRecords.delay(owned_ids)
+
+            return 'ArtWork/s Deleted Successfully'
+
+        except GraphQLError as e:
+            logger.error(e.message)
+            raise e
+
+        except Exception as e:
+            await db.rollback()
+
             error_mapping = {
                 IntegrityError: ("BAD_USER_INPUT", "E-mail already in used"),
                 SQLAlchemyError: ("INTERNAL_SERVER_ERROR", "Error interno del servidor"),
@@ -216,6 +290,7 @@ class ArtworkQuery:
     async def getArtVerseArtworks(self, info) -> list[ArtworkPayload]:
         db = info.context["db"]
         awk_owner_service = ArtworkOwnerService(db)
+
         try:
             artworks = await awk_owner_service.getArtVerseArtworks()
 
@@ -244,18 +319,56 @@ class ArtworkQuery:
             raise GraphQLError(message=error_message, extensions={"code": extension_code})
         
     @strawberry.field
-    async def getUserArtworks(self, info) -> list[ArtworkPayload]:
+    async def getUserArtworks(self, info, data: UserVariablesInput) -> list[ArtworkItemPayload]:
         db = info.context["db"]
+        mongo = info.context["mongo_db"]
+
         current_user = info.context["current_user"]
         awk_owner_service = ArtworkOwnerService(db)
+        awk_stats_service = ArtworkStatisticsService(mongo)
+
         try:
-            artworks = await awk_owner_service.getUserArtworks(current_user.userId)
+            userId = current_user.userId
+            if data.module == 'VisitProfile':
+                userId = data.userId
+
+            artworks = await awk_owner_service.getUserArtworks(userId=userId)
             if not artworks.get("ok", False):
                 raise GraphQLError(message=artworks['error'], extensions={"code": "NOT_FOUND"})
             
+            artworks_stats = await awk_stats_service.getUserArtworks(userId=userId)
+            if not artworks_stats.get("ok", False):
+                raise GraphQLError(message=artworks_stats['error'], extensions={"code": "NOT_FOUND"})
+            
             artworks = artworks.get("data")
+            artworks_stats = artworks_stats.get("data")
 
-            return [ArtworkPayload(artworkId=artwork['artwork_id'], title=artwork['title'], thumbnail=artwork['thumbnail'], publishingId=artwork['publishingId'], owner=artwork['owner'], avatar=None, createdAt=artwork['createdAt']) for artwork in artworks]
+            stats_map = {stat["artwork_id"]: stat["stats"] for stat in artworks_stats}
+
+            payload = []
+
+            for artwork in artworks:
+                stats = stats_map.get(artwork['artworkId'], {})
+
+                payload.append(
+                    ArtworkItemPayload(
+                        artworkId=artwork['artworkId'],
+                        title=artwork['title'],
+                        thumbnail=artwork['thumbnail'],
+                        publishingId=artwork['publishingId'],
+                        scheduleDate=artwork['scheduleDate'],
+                        scheduleTime=artwork['scheduleTime'],
+                        stats=ArtworkStatsPayload(
+                            viewsAmount=stats.get("views_amount", 0),
+                            likes=stats.get("likes", []),
+                            dislikes=stats.get("dislikes", []),
+                            favorites=stats.get("favorites", []),
+                            commentsAmount=stats.get("comments_amount", 0),
+                        )
+                    )
+                )
+
+            return payload
         except GraphQLError as e:
             logger.error(e.message)
             raise e
@@ -278,8 +391,9 @@ class ArtworkQuery:
     async def getArtworkDetails(self, info, artworkId: int) -> ArtworkDetailsPayload:
         db = info.context["db"]
         awk_service = ArtworkService(db)
+
         try:
-            artwork = await awk_service.getArtworkDetails(artworkId)
+            artwork = await awk_service.getArtworkDetails(artworkId=artworkId)
 
             if not artwork.get("ok", False):
                 raise GraphQLError(message=artwork['error'], extensions={"code": "NOT_FOUND"})
@@ -296,6 +410,9 @@ class ArtworkQuery:
                 softwares=artwork['softwares'],
                 publishingId=artwork['publishing_id'], 
                 thumbnail=artwork['thumbnail'], 
+                images=artwork['images'],
+                videos=artwork['videos'],
+                owner=artwork['owner'],
                 createdAt=artwork['created_at']
             )
         except GraphQLError as e:
@@ -323,6 +440,7 @@ class ArtworkQuery:
         tpc_service = TopicService(db)
         sft_service = SoftwareService(db)
         pbl_service = PublishingService(db)
+
         try:
             categories = await ctg_service.getCategories()
             categories = categories.get("data") if categories.get("ok") else []

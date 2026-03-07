@@ -19,3 +19,4 @@ REFRESH_TOKEN_EXPIRE_MINUTES = os.getenv("REFRESH_TOKEN_EXPIRE_MINUTES")
 
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 PORT = os.getenv("PORT", "5004")
+URL_FRONTEND = os.getenv("URL_FRONTEND")
