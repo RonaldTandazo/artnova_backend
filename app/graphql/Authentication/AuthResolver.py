@@ -19,7 +19,7 @@ class AuthQuery:
         awk_usr_service = UserService(db)
 
         try:
-            if data.module in ['OwnProfile', 'ProfileSettings', 'NewArtwork', 'Chats']:
+            if data.module in ['OwnProfile', 'ProfileSettings', 'NewArtwork', 'Chats', 'Favorites']:
                 if current_user.userId != data.value:
                     return ValidateUserPayload(validate=False)
                 
@@ -79,6 +79,7 @@ class AuthMutation:
             loginData = login.get("data")
             accessToken = loginData['accessToken']
             refreshToken = loginData['refreshToken']
+            
             await db.commit()
             
             return AuthPayload(accessToken=accessToken, refreshToken=refreshToken, tokenType="bearer")
@@ -117,6 +118,7 @@ class AuthMutation:
             
             accessToken = tokensData['accessToken']
             refreshToken = tokensData['refreshToken']
+            
             await db.commit()
 
             return AuthPayload(accessToken=accessToken, refreshToken=refreshToken, tokenType="bearer")
@@ -127,6 +129,7 @@ class AuthMutation:
         
         except Exception as e:
             await db.rollback()
+            
             logger.error(e)
             raise GraphQLError(message="Could not refresh token", extensions={"code": "INTERNAL_SERVER_ERROR"})
         

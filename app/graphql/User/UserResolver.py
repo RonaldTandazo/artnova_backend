@@ -4,13 +4,13 @@ from app.services.User.UserService import UserService
 from app.services.Chat.ChatService import ChatService
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from strawberry.exceptions import GraphQLError
-from app.graphql.User.UserInputs import ProfileInput, RegisterInput
+from app.graphql.User.UserInputs import ProfileInput, RegisterInput, StorePictureInput
 from app.utils.helpers import Helpers
 from app.graphql.Standard.StandardPayloads import ResponsesPayload
-from strawberry.file_uploads import Upload
-from app.graphql.User.UserPayloads import ProfilePayload, UserGeneralDataPayload
+from app.graphql.User.UserPayloads import ProfilePayload, UserGeneralDataPayload, UserStatsPayload
 from app.jobs.User.MigrateUserMongo import migrateUserMongo
-from app.jobs.User.UpdateUserAvatarMongo import updateAvatarMongo
+from app.jobs.User.UpdateUserAvatar import updateUserAvatar
+from typing import Optional
 
 @strawberry.type
 class UserQuery:
@@ -46,9 +46,47 @@ class UserQuery:
                 city=user['city'], 
                 avatar=user['avatar'], 
                 since=user['created_at'],
-                chatId=chat["chatId"]
+                chatId=chat["chatId"],
+                cover=user['cover']
             )
         
+        except GraphQLError as e:
+            logger.error(e.message)
+            raise e
+
+        except Exception as e:
+            error_mapping = {
+                IntegrityError: ("BAD_USER_INPUT", "E-mail already in used"),
+                SQLAlchemyError: ("INTERNAL_SERVER_ERROR", "Error interno del servidor"),
+                ValueError: ("BAD_USER_INPUT", "Datos inválidos"),
+                PermissionError: ("FORBIDDEN", "Permiso denegado"),
+                FileNotFoundError: ("NOT_FOUND", "Archivo no encontrado"),
+                ConnectionError: ("TOO_MANY_REQUESTS", "Demasiadas solicitudes"),
+            }
+
+            extension_code, error_message = error_mapping.get(type(e), ("INTERNAL_SERVER_ERROR", "Error desconocido"))
+            logger.error(error_message)
+            raise GraphQLError(message=error_message, extensions={"code": extension_code})
+        
+    @strawberry.field
+    async def getUserStats(self, info, userId: Optional[int] = None) -> UserStatsPayload:
+        db = info.context["db"]
+        current_user = info.context["current_user"]
+
+        user_service = UserService(db)
+
+        try:
+            if userId is None:
+                userId = current_user.userId
+
+            user_stats = await user_service.getUserStats(userId=userId)
+            if not user_stats.get("ok", False):
+                raise GraphQLError(message=user_stats['error'], extensions={"code": "BAD_USER_INPUT"})
+            
+            stats = user_stats.get('data')
+           
+            return stats
+
         except GraphQLError as e:
             logger.error(e.message)
             raise e
@@ -128,7 +166,7 @@ class UserMutation:
             raise GraphQLError(message=error_message, extensions={"code": extension_code})
         
     @strawberry.mutation
-    async def storeUserPicture(self, info, picture: Upload) -> ResponsesPayload:
+    async def storeUserPicture(self, info, data: StorePictureInput) -> ResponsesPayload:
         db = info.context["db"]
         current_user = info.context["current_user"]
 
@@ -140,30 +178,32 @@ class UserMutation:
                 raise GraphQLError(message=user['error'], extensions={"code": "BAD_USER_INPUT"})
 
             user = user.get("data")
-            if user.avatar:
-                delete_avatar = await Helpers.deleteFile(filename=user.avatar, type="avatar")
-                if not delete_avatar.get("ok", False):
-                    raise GraphQLError(message=delete_avatar['error'], extensions={"code": "INTERNAL_SERVER_ERROR"})
+            fileToDelete = user.avatar if data.type == 'avatar' else user.cover
+            
+            if fileToDelete:
+                delete_picture = await Helpers.deleteFile(filename=fileToDelete, type=data.type)
+                if not delete_picture.get("ok", False):
+                    raise GraphQLError(message=delete_picture['error'], extensions={"code": "INTERNAL_SERVER_ERROR"})
 
-                delete_previous_picture = await user_service.deleteUserPicture(user=user)
+                delete_previous_picture = await user_service.deleteUserPicture(user=user, type=data.type)
                 if not delete_previous_picture.get("ok", False):
                     raise GraphQLError(message=delete_previous_picture['error'], extensions={"code": "BAD_USER_INPUT"})
                 
             filename = await Helpers.generateRandomFilename(extension=".jpeg")
-            picture_content = await picture.read()
+            picture_content = await data.picture.read()
 
-            avatar_store = await Helpers.decodedAndSaveFile(filename=filename, file=picture_content, type="avatar", decode=False)
-            if not avatar_store.get("ok", False):
-                raise GraphQLError(message=avatar_store['error'], extensions={"code": "INTERNAL_SERVER_ERROR"})
+            store_picture_server = await Helpers.decodedAndSaveFile(filename=filename, file=picture_content, type=data.type, decode=False)
+            if not store_picture_server.get("ok", False):
+                raise GraphQLError(message=store_picture_server['error'], extensions={"code": "INTERNAL_SERVER_ERROR"})
             
-            store_avatar = await user_service.storeUserPicture(user=user, filename=filename)
-            if not store_avatar.get("ok", False):
-                raise GraphQLError(message=store_avatar['error'], extensions={"code": "BAD_USER_INPUT"})
+            store_picture_db = await user_service.storeUserPicture(user=user, filename=filename, type=data.type)
+            if not store_picture_db.get("ok", False):
+                raise GraphQLError(message=store_picture_db['error'], extensions={"code": "BAD_USER_INPUT"})
             
             await db.commit()
-            updateAvatarMongo.delay(user.user_id, filename)
+            updateUserAvatar.delay(user.user_id, filename)
             
-            return ResponsesPayload(label=store_avatar.get("message"), value=filename)
+            return ResponsesPayload(label=store_picture_db.get("message"), value=filename)
         
         except GraphQLError as e:
             logger.error(e.message)

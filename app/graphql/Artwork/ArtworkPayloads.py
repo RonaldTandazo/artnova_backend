@@ -5,7 +5,7 @@ from app.graphql.Publishing.PublishingPayloads import PublishingPayload
 from app.graphql.Standard.StandardPayloads import StandardPayload
 from app.graphql.ArtworkStatistics.ArtworkStatisticsPayloads import ArtworkStatsPayload
 from typing import Optional
-from datetime import date, time
+from datetime import datetime
 import strawberry
 
 @strawberry.type
@@ -27,8 +27,7 @@ class ArtworkItemPayload:
     title: str
     thumbnail: Optional[str | None] = None
     publishingId: int
-    scheduleDate: Optional[date] = None
-    scheduleTime: Optional[time] = None
+    scheduleAt: Optional[datetime] = None
     stats: ArtworkStatsPayload
 
 @strawberry.type

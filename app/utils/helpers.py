@@ -51,7 +51,8 @@ class Helpers:
             "countryId": user.country_id,
             "location": f"{user.city}, {user.country.name}" if user.country else None,
             "since": user.created_at.isoformat() if user.created_at else None,
-            "avatar": user.avatar
+            "avatar": user.avatar,
+            "cover": user.cover
         }
         
         return structure
@@ -71,6 +72,9 @@ class Helpers:
 
             if type == "avatar":
                 upload_folder += "/users/avatars"
+
+            if type == "cover":
+                upload_folder += "/users/covers"
 
             if type == "thumbnail":
                 upload_folder += "/artworks/thumbnails"
@@ -100,6 +104,9 @@ class Helpers:
             
             if type == "avatar":
                 target_folder += "/users/avatars"
+
+            if type == "cover":
+                target_folder += "/users/covers"
 
             if type == "thumbnail":
                 target_folder += "/artworks/thumbnails"

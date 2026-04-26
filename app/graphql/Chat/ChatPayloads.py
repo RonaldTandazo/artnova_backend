@@ -1,4 +1,5 @@
 import strawberry
+from app.graphql.User.UserPayloads import ArtistPayload
 
 @strawberry.type
 class ChatMessagePayload:
@@ -25,12 +26,6 @@ class LastMessagePayload:
     message: str
     date: str
     time: str
-
-@strawberry.type
-class ArtistPayload:
-    artistId: int
-    username: str
-    avatar: str | None
 
 @strawberry.type
 class ChatsPayload:

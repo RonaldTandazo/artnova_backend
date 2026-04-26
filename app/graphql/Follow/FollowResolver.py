@@ -6,6 +6,7 @@ from strawberry.exceptions import GraphQLError
 from app.graphql.Follow.FollowInputs import FollowStateInput
 from app.graphql.Follow.FollowPayloads import FollowStatePayload
 from app.services.Follow.FollowService import FollowService
+from app.jobs.Notification.SendFollowerNotification import sendFollowerNotification
 
 @strawberry.type
 class FollowQuery:
@@ -69,6 +70,10 @@ class FollowMutation:
                 if not set_follow.get("ok", False):
                     raise GraphQLError(message=set_follow['error'], extensions={"code": "BAD_USER_INPUT"})
                 
+                sendFollowerNotification.delay(current_user.userId, data.followedId, ip, terminal)
+                
+            await db.commit()
+                
             return "Relationship Set"
 
         except GraphQLError as e:
@@ -76,6 +81,8 @@ class FollowMutation:
             raise e
 
         except Exception as e:
+            await db.rollback()
+
             error_mapping = {
                 IntegrityError: ("BAD_USER_INPUT", "E-mail already in used"),
                 SQLAlchemyError: ("INTERNAL_SERVER_ERROR", "Error interno del servidor"),
@@ -97,19 +104,23 @@ class FollowMutation:
         follow_service = FollowService(db)
         
         try:
-            follow_state = await follow_service.verifyRelationship(followerId=current_user.userId, followedId=data.followedId)
-            if not follow_state.get("ok", False):
-                raise GraphQLError(message=follow_state['error'], extensions={"code": "BAD_USER_INPUT"})
-            
-            follow_state = follow_state.get('data')
-            
-            if follow_state['exists']:
-                followId = follow_state['follow_id']
-
-                unset_follow = await follow_service.unsetFollow(followId=followId)
-                if not unset_follow.get("ok", False):
-                    raise GraphQLError(message=unset_follow['error'], extensions={"code": "BAD_USER_INPUT"})
+            if data.simple:
+                follow_state = await follow_service.verifyRelationship(followerId=current_user.userId, followedId=data.followedId)
+                if not follow_state.get("ok", False):
+                    raise GraphQLError(message=follow_state['error'])
                 
+                state_data = follow_state.get('data')
+                if state_data['exists']:
+                    unset_follow = await follow_service.unsetFollow(followId=state_data['follow_id'])
+                    if not unset_follow.get("ok", False):
+                        raise GraphQLError(message=unset_follow['error'], extensions={"code": "BAD_USER_INPUT"})
+            else:
+                unset_follows = await follow_service.unsetMutualFollow(userA=current_user.userId, userB=data.followedId)
+                if not unset_follows.get("ok", False):
+                    raise GraphQLError(message=unset_follows['error'])
+
+            await db.commit()
+            
             return "Relationship Unset"
 
         except GraphQLError as e:
@@ -117,6 +128,8 @@ class FollowMutation:
             raise e
 
         except Exception as e:
+            await db.rollback()
+
             error_mapping = {
                 IntegrityError: ("BAD_USER_INPUT", "E-mail already in used"),
                 SQLAlchemyError: ("INTERNAL_SERVER_ERROR", "Error interno del servidor"),

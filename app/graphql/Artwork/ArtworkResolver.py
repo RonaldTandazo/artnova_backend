@@ -18,6 +18,7 @@ from app.services.Artwork.ArtworkImageService import ArtworkImageService
 from app.services.Artwork.ArtworkVideoService import ArtworkVideoService
 from app.services.Artwork.ArtworkScheduleService import ArtworkScheduleService
 from app.services.ArtworkStatistics.ArtworkStatisticsService import ArtworkStatisticsService
+from app.services.Artwork.ArtworkUserFavoriteService import ArtworkUserFavoriteService
 from app.services.General.CategoryService import CategoryService
 from app.services.General.TopicService import TopicService
 from app.services.General.SoftwareService import SoftwareService
@@ -29,6 +30,7 @@ from app.graphql.Publishing.PublishingPayloads import PublishingPayload
 from typing import AsyncGenerator
 from app.jobs.Artwork.CreateArtworkStats import createArtworkStats
 from app.jobs.Artwork.DeleteArtworksRecords import deleteArtworksRecords
+from app.jobs.Notification.SendArtworkNotification import sendArtworkNotification
 
 @strawberry.type
 class NewArtworkPayload:
@@ -61,7 +63,7 @@ class ArtworkMutation:
         
         ip = await Helpers.getIp(request)
         terminal = await Helpers.getRequestAgents(request)
-        filename = None
+        thumbnameFilename = None
 
         try:
             has_thumbnail = bool(artworkData.thumbnail)
@@ -173,6 +175,7 @@ class ArtworkMutation:
                 thumbnail_name = artworkData.title+" Thumbnail"
                 filename = await Helpers.generateRandomFilename(".jpeg")
                 thumbnail_content = await artworkData.thumbnail.read()
+                thumbnameFilename = filename
 
                 thumbnail_store = await Helpers.decodedAndSaveFile(filename, thumbnail_content, "thumbnail", False)
                 if not thumbnail_store.get("ok", False):
@@ -193,8 +196,7 @@ class ArtworkMutation:
                 store_schedule = await awk_sch_service.store(
                     artworkId=artwork.artwork_id,
                     publishingIdTarget=artworkData.publishingTargetStatus,
-                    date=artworkData.scheduleDate,
-                    time=artworkData.scheduleTime,
+                    scheduleAt=artworkData.scheduleAt,
                     ip=ip,
                     terminal=terminal
                 )
@@ -207,7 +209,7 @@ class ArtworkMutation:
                     artwork=ArtworkPayload(
                         artworkId=artwork.artwork_id,
                         title=artwork.title,
-                        thumbnail=filename,
+                        thumbnail=thumbnameFilename,
                         publishingId=artworkData.publishing,
                         owner=current_user.userId,
                         createdAt=artwork.created_at
@@ -215,12 +217,15 @@ class ArtworkMutation:
                 )
             )
 
+            if artworkData.publishing == 2:
+                sendArtworkNotification.delay(current_user.userId, current_user.username, artwork.artwork_id, thumbnameFilename, ip, terminal)
+
             createArtworkStats.delay(artwork.artwork_id, current_user.userId, ip, terminal)
 
             return ArtworkPayload(
                 artworkId=artwork.artwork_id,
                 title=artwork.title,
-                thumbnail=filename,
+                thumbnail=thumbnameFilename,
                 publishingId=artworkData.publishing,
                 owner=current_user.userId,
                 createdAt=artwork.created_at
@@ -245,6 +250,7 @@ class ArtworkMutation:
             extension_code, error_message = error_mapping.get(type(e), ("INTERNAL_SERVER_ERROR", "Error desconocido"))
             logger.error(error_message)
             raise GraphQLError(message=error_message, extensions={"code": extension_code})
+            
     @strawberry.mutation
     async def deleteUserArtworks(self, info, deleteArtworks: DeleteUserArtworkInput) -> str:
         db = info.context["db"]
@@ -289,17 +295,16 @@ class ArtworkQuery:
     @strawberry.field
     async def getArtVerseArtworks(self, info) -> list[ArtworkPayload]:
         db = info.context["db"]
-        awk_owner_service = ArtworkOwnerService(db)
+        awk_service = ArtworkService(db)
 
         try:
-            artworks = await awk_owner_service.getArtVerseArtworks()
-
+            artworks = await awk_service.getArtVerseArtworks()
             if not artworks.get("ok", False):
                 raise GraphQLError(message=artworks['error'], extensions={"code": "NOT_FOUND"})
             
             artworks = artworks.get("data")
 
-            return [ArtworkPayload(artworkId=artwork['artwork_id'], title=artwork['title'], thumbnail=artwork['thumbnail'], publishingId=artwork['publishingId'], owner=artwork['owner'], avatar=artwork['avatar'], createdAt=artwork['createdAt'], hasImages=artwork['hasImages'], hasVideos=artwork['hasVideos'], has3DFile=artwork['has3DFile']) for artwork in artworks]
+            return artworks
         except GraphQLError as e:
             logger.error(e.message)
             raise e
@@ -356,8 +361,7 @@ class ArtworkQuery:
                         title=artwork['title'],
                         thumbnail=artwork['thumbnail'],
                         publishingId=artwork['publishingId'],
-                        scheduleDate=artwork['scheduleDate'],
-                        scheduleTime=artwork['scheduleTime'],
+                        scheduleAt=artwork['scheduleAt'],
                         stats=ArtworkStatsPayload(
                             viewsAmount=stats.get("views_amount", 0),
                             likes=stats.get("likes", []),
@@ -388,13 +392,45 @@ class ArtworkQuery:
             raise GraphQLError(message=error_message, extensions={"code": extension_code})
         
     @strawberry.field
+    async def getUserFavoritesArtworks(self, info) -> list[ArtworkPayload]:
+        db = info.context["db"]
+
+        current_user = info.context["current_user"]
+        awk_fav_service = ArtworkUserFavoriteService(db)
+
+        try:
+            fav_artworks = await awk_fav_service.getFavoritesArtworksByUser(userId=current_user.userId)
+            if not fav_artworks.get("ok", False):
+                raise GraphQLError(message=fav_artworks['error'], extensions={"code": "NOT_FOUND"})
+            
+            artworks = fav_artworks.get("data")
+
+            return artworks
+        except GraphQLError as e:
+            logger.error(e.message)
+            raise e
+
+        except Exception as e:
+            error_mapping = {
+                IntegrityError: ("BAD_USER_INPUT", "E-mail already in used"),
+                SQLAlchemyError: ("INTERNAL_SERVER_ERROR", "Error interno del servidor"),
+                ValueError: ("BAD_USER_INPUT", "Datos inválidos"),
+                PermissionError: ("FORBIDDEN", "Permiso denegado"),
+                FileNotFoundError: ("NOT_FOUND", "Archivo no encontrado"),
+                ConnectionError: ("TOO_MANY_REQUESTS", "Demasiadas solicitudes"),
+            }
+
+            extension_code, error_message = error_mapping.get(type(e), ("INTERNAL_SERVER_ERROR", "Error desconocido"))
+            logger.error(error_message)
+            raise GraphQLError(message=error_message, extensions={"code": extension_code})
+        
+    @strawberry.field
     async def getArtworkDetails(self, info, artworkId: int) -> ArtworkDetailsPayload:
         db = info.context["db"]
         awk_service = ArtworkService(db)
 
         try:
             artwork = await awk_service.getArtworkDetails(artworkId=artworkId)
-
             if not artwork.get("ok", False):
                 raise GraphQLError(message=artwork['error'], extensions={"code": "NOT_FOUND"})
             

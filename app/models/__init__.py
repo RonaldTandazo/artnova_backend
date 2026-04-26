@@ -22,4 +22,5 @@ from .Users.UserSoftware import UserSoftware
 from .Users.UserTopic import UserTopic
 from .Follows.Follow import Follow
 from .Blocks.Block import Block
+from .Notifications.Notifications import Notification
 from .base import Base

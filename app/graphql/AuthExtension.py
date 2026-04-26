@@ -8,7 +8,8 @@ CONDITIONAL_AUTH_OPERATIONS = [
     "GetArtVerseArtworks",
     "GetArtworkDetails",
     "GetArtworkStatistics",
-    "StoreArtworkViews"
+    "StoreArtworkViews",
+    "GetSearchResults"
 ]
 
 NO_AUTH_REQUIRED_OPERATIONS = [

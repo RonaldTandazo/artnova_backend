@@ -111,7 +111,6 @@ class ChatQuery:
         chat_service = ChatService(db)
 
         try:
-            logger.info(pagination)
             get_chat = await chat_service.getChat(chatId=chatId, limit=pagination.limit, offset=pagination.offset)
             if not get_chat.get("ok", False):
                 raise GraphQLError(message=get_chat['error'], extensions={"code": "NOT_FOUND"})

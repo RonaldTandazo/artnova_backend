@@ -1,4 +1,5 @@
 import strawberry
+from strawberry.file_uploads import Upload
 
 @strawberry.input
 class UserVariablesInput:
@@ -21,3 +22,8 @@ class ProfileInput:
     summary: str
     countryId: int
     city: str
+
+@strawberry.input
+class StorePictureInput:
+    type: str
+    picture: Upload

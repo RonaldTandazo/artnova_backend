@@ -4,7 +4,6 @@ from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.Artworks.ArtworkOwner import ArtworkOwner
 from app.models.Artworks.Artwork import Artwork
-from app.models.Users.User import User
 from app.models.Artworks.ArtworkThumbnail import ArtworkThumbnail
 from app.models.Artworks.ArtworkSchedule import ArtworkSchedule
 from typing import Any
@@ -41,61 +40,6 @@ class ArtworkOwnerService:
             error_code, error_message = error_mapping.get(type(e), (500, "Internal server error"))
             return {"ok": False, "error": error_message, "code": error_code}
         
-    async def getArtVerseArtworks(self):
-        try:
-            result = await self.db.execute(
-                select(
-                    Artwork.artwork_id.label("artwork_id"),
-                    Artwork.title.label("title"),
-                    Artwork.publishing_id.label("publishingId"),
-                    Artwork.has_images.label("hasImages"),
-                    Artwork.has_videos.label("hasVideos"),
-                    Artwork.has_3d_file.label("has3DFile"),
-                    Artwork.created_at.label("createdAt"),
-                    ArtworkThumbnail.filename.label("thumbnail"),
-                    User.username.label("owner"),
-                    User.avatar.label("avatar")
-                )
-                .select_from(ArtworkOwner)
-                .join(User, and_(ArtworkOwner.user_id == User.user_id))
-                .join(Artwork, and_(ArtworkOwner.artwork_id == Artwork.artwork_id, Artwork.status == "A", Artwork.publishing_id == 2))
-                .outerjoin(ArtworkThumbnail, and_(Artwork.artwork_id == ArtworkThumbnail.artwork_id, ArtworkThumbnail.status == "A"))
-                .where(and_(ArtworkOwner.status == "A"))
-                .order_by(asc(Artwork.created_at))
-            )
-
-            rows = result.mappings().all()
-
-            artworks = [
-                {
-                    "artwork_id": row['artwork_id'],
-                    "title": row['title'],
-                    "thumbnail": row['thumbnail'],
-                    "publishingId": row['publishingId'],
-                    "hasImages": row['hasImages'],
-                    "hasVideos": row['hasVideos'],
-                    "has3DFile": row['has3DFile'],
-                    "createdAt": row['createdAt'],
-                    "owner": row['owner'],
-                    "avatar": row['avatar'],
-                }
-                for row in rows
-            ]
-
-            return {"ok": True, "message": "Artworks Found", "code": 201, "data": artworks}
-        except Exception as e:
-            logger.error(e)
-            error_mapping = {
-                IntegrityError: (400, "Database integrity error"),
-                SQLAlchemyError: (500, "Database error"),
-                ValueError: (400, "Invalid input data"),
-                PermissionError: (401, "Unauthorized access"),
-                FileNotFoundError: (404, "Resource not found"),
-                ConnectionError: (429, "Too many requests"),
-            }
-
-            error_code, error_message = error_mapping.get(type(e), (500, "Internal server error"))
-            return {"ok": False, "error": error_message, "code": error_code}
         
     async def getUserArtworks(self, userId: int):
         try:
@@ -105,8 +49,7 @@ class ArtworkOwnerService:
                     Artwork.title.label("title"),
                     Artwork.publishing_id.label("publishingId"),
                     ArtworkThumbnail.filename.label("thumbnail"),
-                    ArtworkSchedule.schedule_date,
-                    ArtworkSchedule.schedule_time
+                    ArtworkSchedule.schedule_at,
                 )
                 .select_from(ArtworkOwner)
                 .join(Artwork, and_(ArtworkOwner.artwork_id == Artwork.artwork_id, Artwork.status == "A"))
@@ -124,8 +67,7 @@ class ArtworkOwnerService:
                     "title": row['title'],
                     "thumbnail": row['thumbnail'],
                     "publishingId": row['publishingId'],
-                    "scheduleDate": row['schedule_date'],
-                    "scheduleTime": row['schedule_time'],
+                    "scheduleAt": row['schedule_at'],
                 }
                 for row in rows
             ]

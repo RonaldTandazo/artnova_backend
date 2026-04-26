@@ -1,8 +1,8 @@
 from app.graphql.Category.CategoryPayloads import CategoryPayload
 from app.graphql.Topic.TopicPayloads import TopicPayload
 from app.graphql.Software.SoftwarePayloads import SoftwarePayload
-from app.graphql.User.UserInputs import ProfileInput
 import strawberry
+from typing import Optional
 
 @strawberry.type
 class SkillsData:
@@ -32,8 +32,21 @@ class UserGeneralDataPayload:
     avatar: str | None
     since: str
     chatId: str | None
+    cover: Optional[str | None] = None
 
 @strawberry.type
 class ProfilePayload:
     message: str
     values: ProfileUpdated
+
+@strawberry.type
+class ArtistPayload:
+    artistId: int
+    username: str
+    avatar: str | None
+    cover: Optional[str | None] = None
+
+@strawberry.type
+class UserStatsPayload:
+    followersCount: int
+    followingCount: int

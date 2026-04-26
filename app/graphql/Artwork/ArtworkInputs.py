@@ -1,7 +1,7 @@
 import strawberry
 from typing import Optional
 from strawberry.file_uploads import Upload
-from datetime import date, time
+from datetime import datetime
 
 @strawberry.input
 class StoreArtworkInput:
@@ -18,8 +18,7 @@ class StoreArtworkInput:
     publishing: Optional[int] = None
     schedule: Optional[bool] = None
     publishingTargetStatus: Optional[int] = None
-    scheduleDate: Optional[date] = None
-    scheduleTime: Optional[time] = None
+    scheduleAt: Optional[datetime] = None
 
 @strawberry.input
 class DeleteUserArtworkInput:

@@ -22,7 +22,12 @@ async def close_redis_connection():
         await redis_client.close()
 
 def get_redis_client() -> Redis:
+    global redis_client
+
     if redis_client is None:
-        raise Exception("Redis client not initialized. Check FastAPI startup.")
+        redis_client = redis.from_url(
+            REDIS_URL,
+            decode_responses=True
+        )
     
     return redis_client

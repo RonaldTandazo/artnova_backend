@@ -16,17 +16,52 @@ from app.graphql.ArtworkViews.ArtworkViewsResolver import ArtworkViewsMutation
 from app.graphql.Follow.FollowResolver import FollowMutation, FollowQuery
 from app.graphql.Chat.ChatResolver import ChatQuery, ChatMutation, ChatSubscription
 from app.graphql.Block.BlockResolver import BlockMutation
+from app.graphql.Notifications.NotificationResolver import NotificationQuery, NotificationSubscription, NotificationMutation
+from app.graphql.Search.SearchResolver import SearchQuery
 
 @strawberry.type
-class Query(AuthQuery, UserQuery, CountryQuery, UserSkillsQuery, SocialMediaQuery, UserSocialNetworkQuery, CategoryQuery, PublishingQuery, SoftwareQuery, TopicQuery, ArtworkQuery, ArtworkStatisticsQuery, FollowQuery, ChatQuery):
+class Query(
+    AuthQuery,
+    UserQuery,
+    CountryQuery,
+    UserSkillsQuery,
+    SocialMediaQuery,
+    UserSocialNetworkQuery,
+    CategoryQuery,
+    PublishingQuery,
+    SoftwareQuery,
+    TopicQuery,
+    ArtworkQuery,
+    ArtworkStatisticsQuery,
+    FollowQuery,
+    ChatQuery,
+    NotificationQuery,
+    SearchQuery
+):
     pass
 
 @strawberry.type
-class Mutation(AuthMutation, UserMutation, UserSkillsMutation, UserSocialNetworkMutation, ArtworkMutation, ArtworkStatisticsMutation, ArtworkViewsMutation, FollowMutation, ChatMutation, BlockMutation):
+class Mutation(
+    AuthMutation,
+    UserMutation,
+    UserSkillsMutation,
+    UserSocialNetworkMutation,
+    ArtworkMutation,
+    ArtworkStatisticsMutation,
+    ArtworkViewsMutation,
+    FollowMutation,
+    ChatMutation,
+    BlockMutation,
+    NotificationMutation
+):
     pass
 
 @strawberry.type
-class Subscription(ArtworkSubscription, ChatSubscription):
+class Subscription(
+    ArtworkSubscription,
+    ChatSubscription,
+    NotificationSubscription
+):
     pass
 
 GraphSchema = strawberry.Schema(query=Query, mutation=Mutation, subscription=Subscription, extensions=[AuthExtension()])

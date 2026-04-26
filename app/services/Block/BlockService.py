@@ -88,3 +88,31 @@ class BlockService:
 
             error_code, error_message = error_mapping.get(type(e), (500, "Internal server error"))
             return {"ok": False, "error": error_message, "code": error_code}
+        
+    async def getBlockersByBlockedId(self, blockedId: int):
+        try:
+            result = await self.db.execute(
+                select(Block.blocker_id)
+                .where(and_(
+                    Block.status == "A",
+                    Block.blocked_id == blockedId
+                ))
+            )
+
+            rows = result.mappings().all()
+
+            blockerIds = [row['blocker_id'] for row in rows]
+
+            return {"ok": True, "message": "Blockers Found", "code": 200, "data": blockerIds}
+        except Exception as e:
+            error_mapping = {
+                IntegrityError: (400, "Database integrity error"),
+                SQLAlchemyError: (500, "Database error"),
+                ValueError: (400, "Invalid input data"),
+                PermissionError: (401, "Unauthorized access"),
+                FileNotFoundError: (404, "Resource not found"),
+                ConnectionError: (429, "Too many requests"),
+            }
+
+            error_code, error_message = error_mapping.get(type(e), (500, "Internal server error"))
+            return {"ok": False, "error": error_message, "code": error_code}

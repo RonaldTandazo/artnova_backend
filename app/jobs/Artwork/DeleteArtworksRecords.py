@@ -39,51 +39,51 @@ def deleteArtworksRecords(artworkIds):
         try:
             deleteThumbnails = await awk_thmb_service.deleteByArtWorks(artworkIds=artworkIds)
             if not deleteThumbnails.get("ok", False):
-                    raise GraphQLError(message=deleteThumbnails['error'], extensions={"code": "BAD_USER_INPUT"})
+                raise GraphQLError(message=deleteThumbnails['error'], extensions={"code": "BAD_USER_INPUT"})
                         
             deleteCategories = await awk_ctg_service.deleteByArtWorks(artworkIds=artworkIds)
             if not deleteCategories.get("ok", False):
-                    raise GraphQLError(message=deleteCategories['error'], extensions={"code": "BAD_USER_INPUT"})
+                raise GraphQLError(message=deleteCategories['error'], extensions={"code": "BAD_USER_INPUT"})
             
             deleteSoftwares = await awk_sfw_service.deleteByArtWorks(artworkIds=artworkIds)
             if not deleteSoftwares.get("ok", False):
-                    raise GraphQLError(message=deleteSoftwares['error'], extensions={"code": "BAD_USER_INPUT"})
+                raise GraphQLError(message=deleteSoftwares['error'], extensions={"code": "BAD_USER_INPUT"})
             
             deleteTopics = await awk_tpc_service.deleteByArtWorks(artworkIds=artworkIds)
             if not deleteTopics.get("ok", False):
-                    raise GraphQLError(message=deleteTopics['error'], extensions={"code": "BAD_USER_INPUT"})
+                raise GraphQLError(message=deleteTopics['error'], extensions={"code": "BAD_USER_INPUT"})
             
             deleteImages = await awk_img_service.deleteByArtWorks(artworkIds=artworkIds)
             if not deleteImages.get("ok", False):
-                    raise GraphQLError(message=deleteImages['error'], extensions={"code": "BAD_USER_INPUT"})
+                raise GraphQLError(message=deleteImages['error'], extensions={"code": "BAD_USER_INPUT"})
             
             deleteVideos = await awk_vid_service.deleteByArtWorks(artworkIds=artworkIds)
             if not deleteVideos.get("ok", False):
-                    raise GraphQLError(message=deleteVideos['error'], extensions={"code": "BAD_USER_INPUT"})
+                raise GraphQLError(message=deleteVideos['error'], extensions={"code": "BAD_USER_INPUT"})
             
             deleteFavorites = await awk_fav_service.deleteByArtWorks(artworkIds=artworkIds)
             if not deleteFavorites.get("ok", False):
-                    raise GraphQLError(message=deleteFavorites['error'], extensions={"code": "BAD_USER_INPUT"})
+                raise GraphQLError(message=deleteFavorites['error'], extensions={"code": "BAD_USER_INPUT"})
             
             deleteViews = await awk_views_service.deleteByArtWorks(artworkIds=artworkIds)
             if not deleteViews.get("ok", False):
-                    raise GraphQLError(message=deleteViews['error'], extensions={"code": "BAD_USER_INPUT"})
+                raise GraphQLError(message=deleteViews['error'], extensions={"code": "BAD_USER_INPUT"})
             
             deleteStats = await awk_stats_service.deleteByArtWorks(artworkIds=artworkIds)
             if not deleteStats.get("ok", False):
-                    raise GraphQLError(message=deleteStats['error'], extensions={"code": "BAD_USER_INPUT"})
+                raise GraphQLError(message=deleteStats['error'], extensions={"code": "BAD_USER_INPUT"})
             
             deleteSchedule = await awk_sch_service.deleteByArtWorks(artworkIds=artworkIds)
             if not deleteSchedule.get("ok", False):
-                    raise GraphQLError(message=deleteSchedule['error'], extensions={"code": "BAD_USER_INPUT"})
+                raise GraphQLError(message=deleteSchedule['error'], extensions={"code": "BAD_USER_INPUT"})
             
             deleteOwner = await awk_owner_service.deleteByArtWorks(artworkIds=artworkIds)
             if not deleteOwner.get("ok", False):
-                    raise GraphQLError(message=deleteOwner['error'], extensions={"code": "BAD_USER_INPUT"})
+                raise GraphQLError(message=deleteOwner['error'], extensions={"code": "BAD_USER_INPUT"})
             
             deleteArtWorks = await awk_service.deleteByArtWorks(artworkIds=artworkIds)
             if not deleteArtWorks.get("ok", False):
-                    raise GraphQLError(message=deleteArtWorks['error'], extensions={"code": "BAD_USER_INPUT"})
+                raise GraphQLError(message=deleteArtWorks['error'], extensions={"code": "BAD_USER_INPUT"})
             
             filesToDelete = {
                 "thumbnail": deleteThumbnails.get('data', []),

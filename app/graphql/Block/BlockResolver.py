@@ -31,6 +31,8 @@ class BlockMutation:
                 if not set_follow.get("ok", False):
                     raise GraphQLError(message=set_follow['error'], extensions={"code": "BAD_USER_INPUT"})
                 
+            await db.commit()
+                
             return "User Successfully Blocked"
 
         except GraphQLError as e:
@@ -38,6 +40,8 @@ class BlockMutation:
             raise e
 
         except Exception as e:
+            await db.rollback()
+
             error_mapping = {
                 IntegrityError: ("BAD_USER_INPUT", "E-mail already in used"),
                 SQLAlchemyError: ("INTERNAL_SERVER_ERROR", "Error interno del servidor"),
@@ -72,6 +76,8 @@ class BlockMutation:
                 if not unset_block.get("ok", False):
                     raise GraphQLError(message=unset_block['error'], extensions={"code": "BAD_USER_INPUT"})
                 
+            await db.commit()
+
             return "User Successfully Unblocked"
 
         except GraphQLError as e:
@@ -79,6 +85,8 @@ class BlockMutation:
             raise e
 
         except Exception as e:
+            await db.rollback()
+
             error_mapping = {
                 IntegrityError: ("BAD_USER_INPUT", "E-mail already in used"),
                 SQLAlchemyError: ("INTERNAL_SERVER_ERROR", "Error interno del servidor"),

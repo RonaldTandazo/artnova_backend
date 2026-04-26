@@ -19,6 +19,7 @@ class User(AuditBase, Base):
     city = Column(String(50), nullable=True)
     country_id = Column(Integer, ForeignKey("countries.country_id"), nullable=True)
     avatar = Column(String(50), nullable=True)
+    cover = Column(String(50), nullable=True)
 
     country = relationship(
         "Country",
