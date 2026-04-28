@@ -24,13 +24,10 @@ async def shutdown_event():
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://artnova-frontend.vercel.app",
-        "http://localhost:5173",
-    ],
+    allow_origins=[URL_FRONTEND],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 app.mount("/avatars", StaticFiles(directory="app/public/users/avatars"))
