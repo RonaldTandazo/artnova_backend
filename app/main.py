@@ -30,6 +30,8 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization"],
 )
 
+print("URL_FRONTEND:", repr(URL_FRONTEND))
+
 app.mount("/avatars", StaticFiles(directory="app/public/users/avatars"))
 app.mount("/covers", StaticFiles(directory="app/public/users/covers"))
 app.mount("/thumbnails", StaticFiles(directory="app/public/artworks/thumbnails"))
