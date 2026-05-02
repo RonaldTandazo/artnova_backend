@@ -9,7 +9,12 @@ CONDITIONAL_AUTH_OPERATIONS = [
     "GetArtworkDetails",
     "GetArtworkStatistics",
     "StoreArtworkViews",
-    "GetSearchResults"
+    "GetSearchResults",
+    "ValidateUserAccess",
+    "GetUserGeneralData",
+    "GetUserStats",
+    "GetUserArtworks",
+    "GetUserSocialMedia"
 ]
 
 NO_AUTH_REQUIRED_OPERATIONS = [

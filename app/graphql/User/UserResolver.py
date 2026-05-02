@@ -5,17 +5,17 @@ from app.services.Chat.ChatService import ChatService
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from strawberry.exceptions import GraphQLError
 from app.graphql.User.UserInputs import ProfileInput, RegisterInput, StorePictureInput
+from app.graphql.Authentication.AuthInputs import ValidateAccessInput
 from app.utils.helpers import Helpers
 from app.graphql.Standard.StandardPayloads import ResponsesPayload
 from app.graphql.User.UserPayloads import ProfilePayload, UserGeneralDataPayload, UserStatsPayload
 from app.jobs.User.MigrateUserMongo import migrateUserMongo
 from app.jobs.User.UpdateUserAvatar import updateUserAvatar
-from typing import Optional
 
 @strawberry.type
 class UserQuery:
     @strawberry.field
-    async def getUserGeneralData(self, info, userId: int) -> UserGeneralDataPayload:
+    async def getUserGeneralData(self, info, data: ValidateAccessInput) -> UserGeneralDataPayload:
         mongo = info.context["mongo_db"]
         db = info.context["db"]
         current_user = info.context["current_user"]
@@ -24,16 +24,25 @@ class UserQuery:
         chat_service = ChatService(mongo)
 
         try:
+            if data.module == 'OwnProfile':
+                userId = current_user.userId
+            else:
+                userId = data.value
+
+            chat = None
+
             user = await user_service.getUserGeneralData(userId=userId)
             if not user.get("ok", False):
                 raise GraphQLError(message=user['error'], extensions={"code": "BAD_USER_INPUT"})
 
-            chat = await chat_service.getChatByUsers(userA=current_user.userId, userB=userId)
-            if not chat.get("ok", False):
-                raise GraphQLError(message=chat['error'], extensions={"code": "BAD_USER_INPUT"})
+            if data.module != 'OwnProfile' and current_user:
+                chat = await chat_service.getChatByUsers(userA=current_user.userId, userB=userId)
+                if not chat.get("ok", False):
+                    raise GraphQLError(message=chat['error'], extensions={"code": "BAD_USER_INPUT"})
+            
+                chat = chat.get("data")
             
             user = user.get("data")
-            chat = chat.get("data")
             
             return UserGeneralDataPayload(
                 userId=user['user_id'], 
@@ -46,7 +55,7 @@ class UserQuery:
                 city=user['city'], 
                 avatar=user['avatar'], 
                 since=user['created_at'],
-                chatId=chat["chatId"],
+                chatId=chat["chatId"] if chat else None,
                 cover=user['cover']
             )
         
@@ -69,15 +78,17 @@ class UserQuery:
             raise GraphQLError(message=error_message, extensions={"code": extension_code})
         
     @strawberry.field
-    async def getUserStats(self, info, userId: Optional[int] = None) -> UserStatsPayload:
+    async def getUserStats(self, info, data: ValidateAccessInput) -> UserStatsPayload:
         db = info.context["db"]
         current_user = info.context["current_user"]
 
         user_service = UserService(db)
 
         try:
-            if userId is None:
+            if data.module == 'OwnProfile':
                 userId = current_user.userId
+            else:
+                userId = data.value
 
             user_stats = await user_service.getUserStats(userId=userId)
             if not user_stats.get("ok", False):

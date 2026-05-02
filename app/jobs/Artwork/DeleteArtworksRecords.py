@@ -12,6 +12,7 @@ from app.services.Artwork.ArtworkVideoService import ArtworkVideoService
 from app.services.ArtworkStatistics.ArtworkStatisticsService import ArtworkStatisticsService
 from app.services.ArtworkViews.ArtworkViewsService import ArtworkViewsService
 from app.services.Artwork.ArtworkScheduleService import ArtworkScheduleService
+from app.services.ArtworkModel.ArtworkModelService import ArtworkModelService
 from app.utils.helpers import Helpers
 from app.config.logger import logger
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -35,6 +36,7 @@ def deleteArtworksRecords(artworkIds):
         awk_sch_service = ArtworkScheduleService(pgsql)
         awk_stats_service = ArtworkStatisticsService(mongo_db)
         awk_views_service = ArtworkViewsService(mongo_db)
+        awk_model_service = ArtworkModelService(mongo_db)
 
         try:
             deleteThumbnails = await awk_thmb_service.deleteByArtWorks(artworkIds=artworkIds)
@@ -68,6 +70,10 @@ def deleteArtworksRecords(artworkIds):
             deleteViews = await awk_views_service.deleteByArtWorks(artworkIds=artworkIds)
             if not deleteViews.get("ok", False):
                 raise GraphQLError(message=deleteViews['error'], extensions={"code": "BAD_USER_INPUT"})
+            
+            deleteModel = await awk_model_service.deleteByArtWorks(artworkIds=artworkIds)
+            if not deleteModel.get("ok", False):
+                raise GraphQLError(message=deleteModel['error'], extensions={"code": "BAD_USER_INPUT"})
             
             deleteStats = await awk_stats_service.deleteByArtWorks(artworkIds=artworkIds)
             if not deleteStats.get("ok", False):

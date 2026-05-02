@@ -5,7 +5,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from strawberry.exceptions import GraphQLError
 from app.utils.helpers import Helpers
 from app.graphql.Artwork.ArtworkInputs import StoreArtworkInput, DeleteUserArtworkInput
-from app.graphql.User.UserInputs import UserVariablesInput
+from app.graphql.Authentication.AuthInputs import ValidateAccessInput
 from app.graphql.Artwork.ArtworkPayloads import ArtworkPayload, ArtworkDetailsPayload, ArtworkFormData, ArtworkItemPayload
 from app.graphql.ArtworkStatistics.ArtworkStatisticsPayloads import ArtworkStatsPayload
 from app.services.Artwork.ArtworkService import ArtworkService
@@ -29,6 +29,7 @@ from app.graphql.Software.SoftwarePayloads import SoftwarePayload
 from app.graphql.Publishing.PublishingPayloads import PublishingPayload
 from typing import AsyncGenerator
 from app.jobs.Artwork.CreateArtworkStats import createArtworkStats
+from app.jobs.Artwork.CreateArtworkModel import createArtworkModel
 from app.jobs.Artwork.DeleteArtworksRecords import deleteArtworksRecords
 from app.jobs.Notification.SendArtworkNotification import sendArtworkNotification
 
@@ -69,7 +70,7 @@ class ArtworkMutation:
             has_thumbnail = bool(artworkData.thumbnail)
             has_images = bool(artworkData.images)
             has_videos = bool(artworkData.videos)
-            has_3d_file = False
+            has_3d_file = bool(artworkData.modelMainFile)
             has_categories = artworkData.categories and len(artworkData.categories) > 0
             has_topics = artworkData.topics and len(artworkData.topics) > 0
             has_softwares = artworkData.softwares and len(artworkData.softwares) > 0
@@ -217,10 +218,17 @@ class ArtworkMutation:
                 )
             )
 
+            createArtworkStats.delay(artwork.artwork_id, current_user.userId, ip, terminal)
+
+            if has_3d_file:
+                mainFile = artworkData.modelMainFile.filename
+                modelResources = [resource.filename for resource in artworkData.modelResources]
+                modelSettings = strawberry.asdict(artworkData.modelSettings)
+
+                createArtworkModel.delay(artwork.artwork_id, current_user.userId, mainFile, modelResources, modelSettings, ip, terminal)
+
             if artworkData.publishing == 2:
                 sendArtworkNotification.delay(current_user.userId, current_user.username, artwork.artwork_id, thumbnameFilename, ip, terminal)
-
-            createArtworkStats.delay(artwork.artwork_id, current_user.userId, ip, terminal)
 
             return ArtworkPayload(
                 artworkId=artwork.artwork_id,
@@ -324,7 +332,7 @@ class ArtworkQuery:
             raise GraphQLError(message=error_message, extensions={"code": extension_code})
         
     @strawberry.field
-    async def getUserArtworks(self, info, data: UserVariablesInput) -> list[ArtworkItemPayload]:
+    async def getUserArtworks(self, info, data: ValidateAccessInput) -> list[ArtworkItemPayload]:
         db = info.context["db"]
         mongo = info.context["mongo_db"]
 
@@ -333,9 +341,10 @@ class ArtworkQuery:
         awk_stats_service = ArtworkStatisticsService(mongo)
 
         try:
-            userId = current_user.userId
             if data.module == 'VisitProfile':
-                userId = data.userId
+                userId = data.value
+            else:
+                userId = current_user.userId
 
             artworks = await awk_owner_service.getUserArtworks(userId=userId)
             if not artworks.get("ok", False):

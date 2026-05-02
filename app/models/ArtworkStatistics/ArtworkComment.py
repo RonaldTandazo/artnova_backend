@@ -1,5 +1,4 @@
 from pydantic import Field
-from typing import List
 from app.models.mongo_base import MongoBaseModel
 from bson import ObjectId
 
@@ -11,6 +10,6 @@ class ArtworkComment(MongoBaseModel):
     username: str = Field(...)
     avatar: str | None = Field(default=None)
     comment: str = Field(..., min_length=1)
-    likes: List[int] = Field(default_factory=list)
-    dislikes: List[int] = Field(default_factory=list)
-    replies: List['ArtworkComment'] = Field(default_factory=list)
+    likes: list[int] = Field(default_factory=list)
+    dislikes: list[int] = Field(default_factory=list)
+    replies: list['ArtworkComment'] = Field(default_factory=list)

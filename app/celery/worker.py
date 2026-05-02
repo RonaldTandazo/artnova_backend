@@ -4,7 +4,7 @@ from celery.schedules import crontab
 
 REDIS_URL = os.getenv(
     "REDIS_URL",
-    "redis://default:AZwxgEDMZBLPnix1PZP5PlEYrCIcAYw5@redis-17903.c90.us-east-1-3.ec2.cloud.redislabs.com:17903"
+    "redis://default:qhBTTkTBTdLBJPn20rJw795Xzu8tSwDt@redis-12617.c13.us-east-1-3.ec2.cloud.redislabs.com:12617"
 )
 
 celery_app = Celery(
@@ -15,6 +15,7 @@ celery_app = Celery(
         'app.jobs.User.MigrateUserMongo',
         'app.jobs.User.UpdateUserAvatar',
         'app.jobs.Artwork.CreateArtworkStats',
+        'app.jobs.Artwork.CreateArtworkModel',
         'app.jobs.Artwork.MigrateUserFavoriteArtworks',
         'app.jobs.Artwork.DeleteArtworksRecords',
         "app.jobs.Artwork.PublishScheduledArtworks",

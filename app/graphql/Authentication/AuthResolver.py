@@ -20,7 +20,7 @@ class AuthQuery:
 
         try:
             if data.module in ['OwnProfile', 'ProfileSettings', 'NewArtwork', 'Chats', 'Favorites']:
-                if current_user.userId != data.value:
+                if current_user is None or (current_user is not None and current_user.userId != data.value):
                     return ValidateUserPayload(validate=False)
                 
             elif data.module == 'VisitProfile':

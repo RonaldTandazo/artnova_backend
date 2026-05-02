@@ -4,7 +4,7 @@ from app.models.ArtworkStatistics.ArtworkComment import ArtworkComment
 from app.config.logger import logger
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from bson.objectid import ObjectId
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from datetime import datetime
 
 class ArtworkStatisticsService:
@@ -151,7 +151,7 @@ class ArtworkStatisticsService:
         
     async def getArtworkStatistics(self, artworkId: int):
         try:
-            pipeline: List[Dict[str, Any]] = [
+            pipeline: list[Dict[str, Any]] = [
                 {"$match": {"artwork_id": artworkId, "status": "A"}},
 
                 # Stage 2: Filter the main comments array (keeping only active comments)
@@ -267,7 +267,7 @@ class ArtworkStatisticsService:
         
     async def getUserArtworks(self, userId: int):
         try:
-            pipeline: List[Dict[str, Any]] = [
+            pipeline: list[Dict[str, Any]] = [
                 {"$match": {"owner_id": userId, "status": "A"}},
 
                 {"$project": {

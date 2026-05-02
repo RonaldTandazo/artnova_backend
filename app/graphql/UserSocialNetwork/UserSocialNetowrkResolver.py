@@ -5,23 +5,24 @@ from app.services.User.UserSocialNetworkService import UserSocialNetworkService
 from app.utils.helpers import Helpers
 from app.graphql.UserSocialNetwork.UserSocialNetworkInputs import SocialMediaStoreInput, UpdateUserNetworkInput
 from app.graphql.UserSocialNetwork.UserSocialNetworkPayloads import SocialMediPayload
-from app.graphql.User.UserInputs import UserVariablesInput
+from app.graphql.Authentication.AuthInputs import ValidateAccessInput
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from strawberry.exceptions import GraphQLError
 
 @strawberry.type
 class UserSocialNetworkQuery:
     @strawberry.field
-    async def getUserSocialMedia(self, info, data: UserVariablesInput) -> list[SocialMediPayload]:
+    async def getUserSocialMedia(self, info, data: ValidateAccessInput) -> list[SocialMediPayload]:
         db = info.context["db"]
         current_user = info.context["current_user"]
 
         usr_scl_ntw_service = UserSocialNetworkService(db)
         
         try:
-            userId = current_user.userId
             if data.module == 'VisitProfile':
-                userId = data.userId
+                userId = data.value
+            else:
+                userId = current_user.userId
 
             social_media = await usr_scl_ntw_service.getUserSocialMedia(userId=userId)
             if not social_media.get("ok", False):

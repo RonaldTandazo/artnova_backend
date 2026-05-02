@@ -1,5 +1,4 @@
 from pydantic import Field, BeforeValidator, ConfigDict
-from typing import List
 from app.models.mongo_base import MongoBaseModel
 from bson.objectid import ObjectId
 from typing import Any, Annotated
@@ -17,7 +16,7 @@ PyObjectId = Annotated[
 ]
 
 class Chat(MongoBaseModel):
-    users: List[int] = Field(...)
-    messages: List[PyObjectId] = Field(default_factory=list)
+    users: list[int] = Field(...)
+    messages: list[PyObjectId] = Field(default_factory=list)
     last_message: Any = Field(default=None)
     model_config = ConfigDict(arbitrary_types_allowed=True, json_encoders={ObjectId: str})

@@ -31,6 +31,7 @@ def sendArtworkNotification(artistId, artist, artworkId, thumbnail, ip, terminal
 
             notifications = []
 
+
             for follower in followers:
                 if follower['follower_id'] == artistId:
                     continue
@@ -48,27 +49,28 @@ def sendArtworkNotification(artistId, artist, artworkId, thumbnail, ip, terminal
                     "terminal": terminal
                 })
 
-            stored_notifications = await notification_service.bulk_store(notifications=notifications)
-            if not stored_notifications.get('ok', False):
-                raise GraphQLError(message=stored_notifications['error'], extensions={"code": "INTERNAL_SERVER_ERROR"})
-            
-            await db.commit()
-            
-            records = stored_notifications.get('data')
+            if len(notifications) > 0:
+                stored_notifications = await notification_service.bulk_store(notifications=notifications)
+                if not stored_notifications.get('ok', False):
+                    raise GraphQLError(message=stored_notifications['error'], extensions={"code": "INTERNAL_SERVER_ERROR"})
+                
+                await db.commit()
+                
+                records = stored_notifications.get('data')
 
-            for notification in records:
-                await pubsub_manager.publish(
-                    channel=f"notifications:{notification['receipter_id']}",
-                    message_data={
-                        "notification_id": notification["notification_id"],
-                        "type": type,
-                        "entity_id": artworkId,
-                        "title": title,
-                        "description": description,
-                        "is_read": False,
-                        "image": thumbnail
-                    }
-                )
+                for notification in records:
+                    await pubsub_manager.publish(
+                        channel=f"notifications:{notification['receipter_id']}",
+                        message_data={
+                            "notification_id": notification["notification_id"],
+                            "type": type,
+                            "entity_id": artworkId,
+                            "title": title,
+                            "description": description,
+                            "is_read": False,
+                            "image": thumbnail
+                        }
+                    )
 
         except GraphQLError as e:
             logger.error(e.message)
