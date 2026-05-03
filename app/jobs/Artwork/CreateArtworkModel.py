@@ -11,4 +11,4 @@ def createArtworkModel(artworkId, ownerId, mainFile, resources, settings, ip, te
         model_service = ArtworkModelService(db)
         await model_service.store(artworkId=artworkId, ownerId=ownerId, mainFile=mainFile, resources=resources, settings=settings, ip=ip, terminal=terminal)
 
-    Helpers.run_async(_logic())
+    return Helpers.run_async(_logic())

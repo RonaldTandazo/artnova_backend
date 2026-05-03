@@ -19,4 +19,4 @@ def migrateUserMongo(user_id, username, ip, terminal):
         document_data = user.model_dump(by_alias=True, exclude_none=True)
         await collection.insert_one(document_data)
 
-    Helpers.run_async(_logic())
+    return Helpers.run_async(_logic())

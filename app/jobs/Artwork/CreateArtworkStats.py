@@ -11,4 +11,4 @@ def createArtworkStats(artworkId, ownerId, ip, terminal):
         stats_service = ArtworkStatisticsService(db)
         await stats_service.store(artworkId=artworkId, ownerId=ownerId, ip=ip, terminal=terminal)
 
-    Helpers.run_async(_logic())
+    return Helpers.run_async(_logic())

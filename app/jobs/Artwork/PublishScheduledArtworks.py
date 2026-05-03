@@ -55,4 +55,4 @@ def publishScheduledArtworks():
         finally:
             await db.close()
 
-    Helpers.run_async(_logic())
+    return Helpers.run_async(_logic())

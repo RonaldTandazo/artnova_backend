@@ -31,7 +31,6 @@ def sendArtworkNotification(artistId, artist, artworkId, thumbnail, ip, terminal
 
             notifications = []
 
-
             for follower in followers:
                 if follower['follower_id'] == artistId:
                     continue
@@ -96,7 +95,7 @@ def sendArtworkNotification(artistId, artist, artworkId, thumbnail, ip, terminal
         finally:
             await db.close()
 
-    Helpers.run_async(_logic())
+    return Helpers.run_async(_logic())
 
 def get_random_artwork_message(artist_name: str) -> str:
     messages = [

@@ -48,4 +48,4 @@ def migrateUserFavoriteArtworks(userId, artworkId, isFavorite, ip, terminal):
         finally:
             await db.close()
 
-    Helpers.run_async(_logic())
+    return Helpers.run_async(_logic())

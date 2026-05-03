@@ -54,4 +54,4 @@ def updateUserAvatar(user_id, filename):
         finally:
             await pgsql.close()
 
-    Helpers.run_async(_logic())
+    return Helpers.run_async(_logic())

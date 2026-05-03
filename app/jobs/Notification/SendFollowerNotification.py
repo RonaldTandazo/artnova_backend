@@ -75,7 +75,7 @@ def sendFollowerNotification(followerId, followedId, ip, terminal):
         finally:
             await db.close()
 
-    Helpers.run_async(_logic())
+    return Helpers.run_async(_logic())
 
 def get_random_follower_message(username: str) -> str:
     messages = [

@@ -87,7 +87,7 @@ class Helpers:
                 upload_folder += "/artworks/multimedia/videos"
 
             if type == "model":
-                upload_folder += "/artworks/model/"+artworkId
+                upload_folder += "/artworks/models/"+artworkId
 
             os.makedirs(upload_folder, exist_ok=True)
 

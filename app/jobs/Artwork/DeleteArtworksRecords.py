@@ -130,4 +130,4 @@ def deleteArtworksRecords(artworkIds):
         finally:
             await pgsql.close()
 
-    Helpers.run_async(_logic())
+    return Helpers.run_async(_logic())
