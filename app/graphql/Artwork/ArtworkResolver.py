@@ -6,7 +6,7 @@ from strawberry.exceptions import GraphQLError
 from app.utils.helpers import Helpers
 from app.graphql.Artwork.ArtworkInputs import StoreArtworkInput, DeleteUserArtworkInput
 from app.graphql.Authentication.AuthInputs import ValidateAccessInput
-from app.graphql.Artwork.ArtworkPayloads import ArtworkPayload, ArtworkDetailsPayload, ArtworkFormData, ArtworkItemPayload
+from app.graphql.Artwork.ArtworkPayloads import ArtworkPayload, ArtworkDetailsPayload, ArtworkFormData, ArtworkItemPayload, ArtworkModelPayload
 from app.graphql.ArtworkStatistics.ArtworkStatisticsPayloads import ArtworkStatsPayload
 from app.services.Artwork.ArtworkService import ArtworkService
 from app.services.Artwork.ArtworkOwnerService import ArtworkOwnerService
@@ -19,6 +19,7 @@ from app.services.Artwork.ArtworkVideoService import ArtworkVideoService
 from app.services.Artwork.ArtworkScheduleService import ArtworkScheduleService
 from app.services.ArtworkStatistics.ArtworkStatisticsService import ArtworkStatisticsService
 from app.services.Artwork.ArtworkUserFavoriteService import ArtworkUserFavoriteService
+from app.services.ArtworkModel.ArtworkModelService import ArtworkModelService
 from app.services.General.CategoryService import CategoryService
 from app.services.General.TopicService import TopicService
 from app.services.General.SoftwareService import SoftwareService
@@ -221,11 +222,27 @@ class ArtworkMutation:
             createArtworkStats.delay(artwork.artwork_id, current_user.userId, ip, terminal)
 
             if has_3d_file:
-                mainFile = artworkData.modelMainFile.filename
-                modelResources = [resource.filename for resource in artworkData.modelResources]
+                mainFile_name = artworkData.modelMainFile.filename
+                model_content = await artworkData.modelMainFile.read()
+
                 modelSettings = strawberry.asdict(artworkData.modelSettings)
 
-                createArtworkModel.delay(artwork.artwork_id, current_user.userId, mainFile, modelResources, modelSettings, ip, terminal)
+                model_store = await Helpers.decodedAndSaveFile(filename=mainFile_name, file=model_content, type="model", decode=False, artworkId=str(artwork.artwork_id))
+                if not model_store.get("ok", False):
+                    raise GraphQLError(message=model_store['error'], extensions={"code": "INTERNAL_SERVER_ERROR"})
+                
+                resourceFilenames = []
+                if artworkData.modelResources:
+                    for resource in artworkData.modelResources:
+                        res_name = resource.filename
+                        res_content = await resource.read()
+                        
+                        res_store = await Helpers.decodedAndSaveFile(filename=res_name, file=res_content, type="model", decode=False, artworkId=str(artwork.artwork_id))
+                        
+                        if res_store.get("ok"):
+                            resourceFilenames.append(res_name)
+
+                createArtworkModel.delay(artwork.artwork_id, current_user.userId, mainFile_name, resourceFilenames, modelSettings, ip, terminal)
 
             if artworkData.publishing == 2:
                 sendArtworkNotification.delay(current_user.userId, current_user.username, artwork.artwork_id, thumbnameFilename, ip, terminal)
@@ -455,8 +472,11 @@ class ArtworkQuery:
                 softwares=artwork['softwares'],
                 publishingId=artwork['publishing_id'], 
                 thumbnail=artwork['thumbnail'], 
+                hasImages=artwork['hasImages'],
                 images=artwork['images'],
+                hasVideos=artwork['hasVideos'],
                 videos=artwork['videos'],
+                has3DFile=artwork['has3DFile'],
                 owner=artwork['owner'],
                 createdAt=artwork['created_at']
             )
@@ -516,6 +536,41 @@ class ArtworkQuery:
             ]
 
             return ArtworkFormData(categories=categories, topics=topics, softwares=softwares, publishing=publishing)
+        except GraphQLError as e:
+            logger.error(e.message)
+            raise e
+
+        except Exception as e:
+            error_mapping = {
+                IntegrityError: ("BAD_USER_INPUT", "E-mail already in used"),
+                SQLAlchemyError: ("INTERNAL_SERVER_ERROR", "Error interno del servidor"),
+                ValueError: ("BAD_USER_INPUT", "Datos inválidos"),
+                PermissionError: ("FORBIDDEN", "Permiso denegado"),
+                FileNotFoundError: ("NOT_FOUND", "Archivo no encontrado"),
+                ConnectionError: ("TOO_MANY_REQUESTS", "Demasiadas solicitudes"),
+            }
+
+            extension_code, error_message = error_mapping.get(type(e), ("INTERNAL_SERVER_ERROR", "Error desconocido"))
+            logger.error(error_message)
+            raise GraphQLError(message=error_message, extensions={"code": extension_code})
+        
+    @strawberry.field
+    async def getArtworkModel(self, info, artworkId: int) -> ArtworkModelPayload:
+        mongo = info.context["mongo_db"]
+        awk_model_service = ArtworkModelService(mongo)
+
+        try:
+            model = await awk_model_service.getArtworkModel(artworkId=artworkId)
+            if not model.get("ok", False):
+                raise GraphQLError(message=model['error'], extensions={"code": "NOT_FOUND"})
+            
+            model = model.get("data")
+
+            return ArtworkModelPayload(
+                mainFile=model['mainFile'], 
+                resources=model['resources'], 
+                settings=model['settings'], 
+            )
         except GraphQLError as e:
             logger.error(e.message)
             raise e

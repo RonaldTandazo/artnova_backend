@@ -35,6 +35,7 @@ app.mount("/covers", StaticFiles(directory="app/public/users/covers"))
 app.mount("/thumbnails", StaticFiles(directory="app/public/artworks/thumbnails"))
 app.mount("/images", StaticFiles(directory="app/public/artworks/multimedia/images"))
 app.mount("/videos", StaticFiles(directory="app/public/artworks/multimedia/videos"))
+app.mount("/models", StaticFiles(directory="app/public/artworks/models"))
 
 # GRAPHQL
 async def get_context(

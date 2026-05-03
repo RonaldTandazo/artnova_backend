@@ -20,3 +20,10 @@ storage/logs/
 # OS
 .DS_Store
 Thumbs.db
+
+app/public/artworks/model/*
+app/public/artworks/multimedia/images/*
+app/public/artworks/multimedia/videos/*
+app/public/artworks/thumbnails/*
+app/public/users/avatars/*
+app/public/users/covers/*

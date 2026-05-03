@@ -141,8 +141,11 @@ class ArtworkService:
                 "softwares": [StandardPayload(value=software.software_id, label=software.software.name) for software in softwares],
                 "publishing_id": artwork.publishing_id,
                 "thumbnail": artwork.artwork_thumbnail.filename if artwork.artwork_thumbnail else None,
+                "hasImages": artwork.has_images,
                 "images": [image.filename for image in artwork.artwork_images],
+                "hasVideos": artwork.has_videos,
                 "videos": [video.filename for video in artwork.artwork_videos],
+                "has3DFile": artwork.has_3d_file,
                 "owner": ArtworkOwnerPayload(userId=owner.user_id, username=owner.username, avatar=owner.avatar),
                 "created_at": artwork.created_at,
             }

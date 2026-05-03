@@ -7,6 +7,7 @@ from bson.objectid import ObjectId
 from datetime import datetime, timezone
 from app.config.logger import logger
 import asyncio
+import shutil
 
 class Helpers:
     async def getIp(request) -> str:
@@ -61,7 +62,7 @@ class Helpers:
         filename = f"{uuid.uuid4()}{extension}"
         return filename
     
-    async def decodedAndSaveFile(filename: str, file: str, type: str, decode: bool = True):
+    async def decodedAndSaveFile(filename: str, file: str, type: str, decode: bool = True, artworkId: str = None):
         try:
             if decode:
                 file_data  = base64.b64decode(file.split(',')[1])
@@ -85,6 +86,9 @@ class Helpers:
             if type == "video":
                 upload_folder += "/artworks/multimedia/videos"
 
+            if type == "model":
+                upload_folder += "/artworks/model/"+artworkId
+
             os.makedirs(upload_folder, exist_ok=True)
 
             file_path = os.path.join(upload_folder, filename)
@@ -97,7 +101,7 @@ class Helpers:
             logger.error(e)
             return {"ok": False, "error": "Error Saving File", "code": 500}
         
-    async def deleteFile(filename: str, type: str):
+    async def deleteFile(filename: str, type: str, artworkId: str = None):
         try:
             base_folder = "app/public"
             target_folder = base_folder
@@ -105,17 +109,27 @@ class Helpers:
             if type == "avatar":
                 target_folder += "/users/avatars"
 
-            if type == "cover":
+            elif type == "cover":
                 target_folder += "/users/covers"
 
-            if type == "thumbnail":
+            elif type == "thumbnail":
                 target_folder += "/artworks/thumbnails"
             
-            if type == "image":
+            elif type == "image":
                 target_folder += "/artworks/multimedia/images"
 
-            if type == "video":
+            elif type == "video":
                 target_folder += "/artworks/multimedia/videos"
+
+            elif type == "model":
+                folder_path_to_delete = os.path.join(base_folder, "artworks/models", str(artworkId))
+            
+                if os.path.exists(folder_path_to_delete):
+                    shutil.rmtree(folder_path_to_delete)
+                    
+                    return {"ok": True, "message": "Model Folder Deleted Successfully", "code": 200}
+                else:
+                    return {"ok": False, "error": "Folder not found", "code": 404}
 
             file_path_to_delete = os.path.join(target_folder, filename)
 

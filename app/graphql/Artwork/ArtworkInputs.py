@@ -1,20 +1,12 @@
 import strawberry
 from typing import Optional
 from strawberry.file_uploads import Upload
+from app.graphql.Artwork.ArtworkPayloads import ModelSettings
 from datetime import datetime
 
 @strawberry.input
-class ModelSettingsInput:
-    environment: list[str]
-    contactShadow: bool
-    intensity: list[float]
-    exposure: list[float]
-    modelColor: str
-    backgroundColor: str
-    autoRotate: bool
-    lightPosition: list[float]
-    lockCameraReset: bool
-    lockInteraction: bool
+class ModelSettingsInput(ModelSettings):
+    pass
 
 @strawberry.input
 class StoreArtworkInput:

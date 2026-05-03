@@ -94,13 +94,17 @@ def deleteArtworksRecords(artworkIds):
             filesToDelete = {
                 "thumbnail": deleteThumbnails.get('data', []),
                 "image": deleteImages.get('data', []),
-                "video": deleteVideos.get('data', [])
+                "video": deleteVideos.get('data', []),
+                "model": artworkIds
             }
 
             for type, files in filesToDelete.items():
                 if files:
-                    for filename in files:  
-                        await Helpers.deleteFile(filename=filename, type=type)
+                    for item in files:
+                        if type == 'model':
+                            await Helpers.deleteFile(filename='', type=type, artworkId=str(item))
+                        else:
+                            await Helpers.deleteFile(filename=item, type=type)
             
             await pgsql.commit()
 

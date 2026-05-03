@@ -9,6 +9,19 @@ from datetime import datetime
 import strawberry
 
 @strawberry.type
+class ModelSettings:
+    environment: list[str]
+    contactShadow: bool
+    intensity: list[float]
+    exposure: list[float]
+    modelColor: str
+    backgroundColor: str
+    autoRotate: bool
+    lightPosition: list[float]
+    lockCameraReset: bool
+    lockInteraction: bool
+
+@strawberry.type
 class ArtworkPayload:
     artworkId: int
     title: str
@@ -47,8 +60,11 @@ class ArtworkDetailsPayload:
     softwares: list[StandardPayload]
     publishingId: int
     thumbnail: str | None
+    hasImages: bool
     images: list[str]
+    hasVideos: bool
     videos: list[str]
+    has3DFile: bool
     owner: ArtworkOwnerPayload
     createdAt: str
 
@@ -58,3 +74,9 @@ class ArtworkFormData:
     topics: list[TopicPayload]
     softwares: list[SoftwarePayload]
     publishing: list[PublishingPayload]
+
+@strawberry.type
+class ArtworkModelPayload:
+    mainFile: str
+    resources: list[str]
+    settings: ModelSettings

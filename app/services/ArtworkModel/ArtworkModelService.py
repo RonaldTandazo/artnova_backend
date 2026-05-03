@@ -1,8 +1,9 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.models.ArtworkModel.ArtworkModel import ArtworkModel
+from app.graphql.Artwork.ArtworkPayloads import ModelSettings
 from app.config.logger import logger
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from typing import Any
+from typing import Any, Dict
 
 class ArtworkModelService:
     COLLECTION_NAME = "artwork_model"
@@ -28,6 +29,46 @@ class ArtworkModelService:
 
             return {"ok": True, "message": "Artwork Model Saved Successfully", "code": 201, "data": new_id_str}
 
+        except Exception as e:
+            logger.error(e)
+            error_mapping = {
+                IntegrityError: (400, "Database integrity error"),
+                SQLAlchemyError: (500, "Database error"),
+                ValueError: (400, "Invalid input data"),
+                PermissionError: (401, "Unauthorized access"),
+                FileNotFoundError: (404, "Resource not found"),
+                ConnectionError: (429, "Too many requests"),
+            }
+
+            error_code, error_message = error_mapping.get(type(e), (500, "Internal server error"))
+            return {"ok": False, "error": error_message, "code": error_code}
+        
+    async def getArtworkModel(self, artworkId: int):
+        try:
+            pipeline: list[Dict[str, Any]] = [
+                {"$match": {"artwork_id": artworkId, "status": "A"}},
+
+                {"$project": {
+                    "_id": 0,
+                    "main_file": 1,
+                    "resources": 1,
+                    "settings": 1,
+                }},
+            ]
+
+            cursor = self.collection.aggregate(pipeline)
+            document = None
+            async for doc in cursor:
+                document = doc
+                break
+
+            data = {
+                'mainFile': document['main_file'],
+                'resources': document['resources'],
+                'settings': ModelSettings(**document['settings']),
+            }
+
+            return {"ok": True, "message": "ArtWork Model Retrieved", "code": 200, "data": data}
         except Exception as e:
             logger.error(e)
             error_mapping = {
