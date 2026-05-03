@@ -21,7 +21,7 @@ storage/logs/
 .DS_Store
 Thumbs.db
 
-app/public/artworks/model/*
+app/public/artworks/models/*
 app/public/artworks/multimedia/images/*
 app/public/artworks/multimedia/videos/*
 app/public/artworks/thumbnails/*
