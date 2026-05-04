@@ -21,8 +21,8 @@ storage/logs/
 .DS_Store
 Thumbs.db
 
-# app/public/artworks/models/*
-# !app/public/artworks/models/.gitkeep
+app/public/artworks/models/*
+!app/public/artworks/models/.gitkeep
 
 app/public/artworks/multimedia/images/*
 !app/public/artworks/multimedia/images/.gitkeep
@@ -30,8 +30,8 @@ app/public/artworks/multimedia/images/*
 app/public/artworks/multimedia/videos/*
 !app/public/artworks/multimedia/videos/.gitkeep
 
-# app/public/artworks/thumbnails/*
-# !app/public/artworks/thumbnails/.gitkeep
+app/public/artworks/thumbnails/*
+!app/public/artworks/thumbnails/.gitkeep
 
 app/public/users/avatars/*
 !app/public/users/avatars/.gitkeep
