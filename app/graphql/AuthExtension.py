@@ -14,7 +14,8 @@ CONDITIONAL_AUTH_OPERATIONS = [
     "GetUserGeneralData",
     "GetUserStats",
     "GetUserArtworks",
-    "GetUserSocialMedia"
+    "GetUserSocialMedia",
+    "GetArtworkModel"
 ]
 
 NO_AUTH_REQUIRED_OPERATIONS = [
