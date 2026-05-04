@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.db.redis import connect_to_redis, close_redis_connection
 from app.config.settings import URL_FRONTEND
+import mimetypes
 
 app = FastAPI()
 
@@ -29,6 +30,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+mimetypes.add_type('model/gltf+json', '.gltf')
+mimetypes.add_type('model/gltf-binary', '.glb')
 
 app.mount("/avatars", StaticFiles(directory="app/public/users/avatars"))
 app.mount("/covers", StaticFiles(directory="app/public/users/covers"))
