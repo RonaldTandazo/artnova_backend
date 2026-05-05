@@ -13,6 +13,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copiar todo el código de la aplicación al contenedor
 COPY . .
 
+RUN adduser --disabled-password --gecos '' appuser
+RUN chown -R appuser:appuser /app
+
+USER appuser
+
 # Exponer el puerto en el que la aplicación escuchará (por defecto, FastAPI usa el puerto 8000)
 #EXPOSE 8000
 
