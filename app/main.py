@@ -28,7 +28,7 @@ app.add_middleware(
     allow_origins=[URL_FRONTEND],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 mimetypes.add_type('model/gltf+json', '.gltf')
